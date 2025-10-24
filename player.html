@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMV LIVE Player</title>
+    <!-- Shaka Player UI CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css" crossorigin="anonymous">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            background: #000;
+            height: 100vh; /* Full viewport height */
+            width: 100vw; /* Full viewport width */
+            overflow: hidden; /* Prevent scrollbars */
+            font-family: 'Inter', sans-serif;
+            color: #E5E7EB; /* Light gray text */
+        }
+        /* Shaka Player container */
+        .shaka-video-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* Video element styling */
+        video {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            object-fit: contain; /* Fit video within container, maintaining aspect ratio */
+        }
+        /* Hide default Shaka spinner */
+        .shaka-spinner-container,
+        .shaka-spinner,
+        .shaka-spinner-svg {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+        /* Channel info overlay */
+        .channel-info {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+            padding: 0.75rem 1rem; /* p-3 */
+            display: flex;
+            align-items: center;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+            pointer-events: none; /* Allows clicks/taps to pass through */
+        }
+        .channel-info.hidden {
+            opacity: 0;
+        }
+        .channel-logo {
+            width: 32px; /* w-8 */
+            height: 32px; /* h-8 */
+            margin-right: 0.75rem; /* mr-3 */
+            border-radius: 0.375rem; /* rounded-md */
+            background: #374151; /* gray-700 background for loading/error */
+            object-fit: contain;
+        }
+        .channel-name {
+            font-size: 1rem; /* text-base */
+            font-weight: 500; /* medium */
+            color: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* Custom loading indicator */
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #3B82F6; /* Blue spinner */
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Error message styling */
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #F87171; /* Red-400 */
+            background: rgba(17, 24, 39, 0.9); /* gray-900 with opacity */
+            padding: 1.5rem; /* p-6 */
+            border-radius: 0.5rem; /* rounded-lg */
+            border: 1px solid #374151; /* gray-700 border */
+            max-width: 90%;
+            width: 350px;
+            text-align: center;
+            z-index: 20;
+            display: none; /* Hidden by default */
+        }
+        .error-message h2 {
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600; /* semibold */
+            margin-bottom: 0.5rem; /* mb-2 */
+            color: #FECACA; /* Red-200 */
+        }
+        /* Alert box styling */
+        .alert-overlay {
+             position: fixed;
+             top: 0;
+             left: 0;
+             width: 100%;
+             height: 100%;
+             background: rgba(0, 0, 0, 0.6);
+             backdrop-filter: blur(4px);
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             z-index: 50; /* Ensure it's above player controls */
+             opacity: 0;
+             visibility: hidden;
+             transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .alert-overlay.visible {
+             opacity: 1;
+             visibility: visible;
+        }
+        .alert-box {
+             background: #1F2937; /* gray-800 */
+             padding: 1.5rem; /* p-6 */
+             border-radius: 0.75rem; /* rounded-xl */
+             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+             text-align: center;
+             color: #E5E7EB; /* gray-200 */
+             width: 90%;
+             max-width: 350px;
+        }
+        .alert-box p {
+             font-size: 1rem; /* text-base */
+             margin-bottom: 1rem; /* mb-4 */
+        }
+        .alert-box button {
+             margin: 0.5rem; /* m-2 */
+             padding: 0.625rem 1.25rem; /* py-2.5 px-5 */
+             border: none;
+             border-radius: 0.5rem; /* rounded-lg */
+             cursor: pointer;
+             font-size: 0.875rem; /* text-sm */
+             font-weight: 600; /* semibold */
+             transition: background-color 0.2s ease;
+        }
+        .join-btn {
+             background: #3B82F6; /* blue-500 */
+             color: white;
+        }
+        .join-btn:hover {
+             background: #2563EB; /* blue-600 */
+        }
+        .close-btn {
+             background: #10B981; /* green-500 */
+             color: white;
+        }
+        .close-btn:hover {
+             background: #059669; /* green-600 */
+        }
+        /* Shaka UI Customizations */
+        .shaka-controls-container .shaka-volume-bar-container {
+             /* Use CSS variables for dynamic updates */
+             --volume-percent: 80%; /* Default volume */
+             background: linear-gradient(to right, rgb(229, 231, 235) var(--volume-percent), rgb(59, 130, 246) var(--volume-percent), rgb(59, 130, 246) 100%);
+        }
+        .shaka-controls-container .shaka-seek-bar-container {
+             --seek-before-color: rgba(59, 130, 246, 1); /* Blue */
+             --seek-after-color: rgba(55, 65, 81, 1); /* gray-600 */
+             --buffered-color: rgba(75, 85, 99, 1); /* gray-500 */
+             background: var(--seek-after-color);
+        }
+        .shaka-controls-container .shaka-range-element {
+             height: 6px;
+        }
+        .shaka-controls-container .shaka-current-time {
+             color: #E5E7EB;
+        }
+        .shaka-controls-container button {
+             color: #E5E7EB;
+        }
+        .shaka-controls-container .shaka-settings-menu button {
+             color: #111827; /* Dark text for menu items */
+        }
+        .shaka-controls-container .shaka-settings-menu button span.shaka-chosen-item {
+             color: #3B82F6; /* Blue for chosen item */
+             font-weight: 600;
+        }
+        .shaka-controls-container .shaka-settings-menu i.shaka-chosen-item {
+             color: #3B82F6; /* Blue checkmark */
+        }
+        .shaka-text-container {
+             /* Adjust subtitle position if needed */
+             bottom: 60px !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Channel Info Overlay -->
+    <div class="channel-info hidden" id="channelInfo">
+        <img class="channel-logo" id="channelLogo" src="" alt="Logo" onerror="this.style.display='none'">
+        <div class="channel-name" id="channelName">Loading...</div>
+    </div>
+
+    <!-- Shaka Player Container -->
+    <div data-shaka-player-container style="width: 100%; height: 100%;">
+        <video autoplay playsinline id="video" style="width: 100%; height: 100%;"></video>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div class="loading-indicator" id="loadingIndicator">
+        <div class="spinner"></div>
+        <p id="loadingText">Initializing Player...</p>
+    </div>
+
+    <!-- Error Message Display -->
+    <div class="error-message" id="errorMessage">
+        <h2>Playback Error</h2>
+        <p id="errorText"></p>
+    </div>
+
+    <!-- Alert Box Overlay -->
+    <div id="alertOverlay" class="alert-overlay">
+        <div class="alert-box">
+            <p>Join our Channel for More Content & Support!</p>
+            <!-- Your updated Telegram link -->
+            <button class="join-btn" onclick="window.open('https://t.me/cricketmemesverse873', '_blank')">Join Channel</button>
+            <button class="close-btn" onclick="closeAlert()">Close</button>
+        </div>
+    </div>
+
+    <!-- Shaka Player JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.ui.min.js" crossorigin="anonymous"></script>
+
+    <script>
+        const video = document.getElementById('video');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const loadingText = document.getElementById('loadingText');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const channelInfo = document.getElementById('channelInfo');
+        const channelLogo = document.getElementById('channelLogo');
+        const channelName = document.getElementById('channelName');
+        const alertOverlay = document.getElementById('alertOverlay');
+        let player = null;
+        let ui = null;
+        let infoHideTimeout = null;
+
+        // --- Explicit Default Retry Parameters (FIX for TypeError) ---
+        const defaultRetryParams = {
+          maxAttempts: 2, // Maximum number of attempts
+          baseDelay: 1000, // Initial delay in milliseconds
+          backoffFactor: 2, // Multiplier for delay
+          fuzzFactor: 0.5, // Randomness factor
+          timeout: 30000, // Request timeout in milliseconds (30 seconds)
+          stallTimeout: 5000, // Timeout for stalls in milliseconds (5 seconds)
+          connectionTimeout: 10000 // Connection timeout (10 seconds)
+        };
+
+        // Function to get channel ID from URL
+        function getChannelIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id');
+        }
+
+        // Function to show error message
+        function showError(message) {
+            console.error('Playback Error:', message);
+            errorText.textContent = message || 'An unknown error occurred.';
+            errorMessage.style.display = 'block';
+            loadingIndicator.style.display = 'none';
+            channelInfo.classList.add('hidden');
+            if (ui && ui.getControls()) ui.getControls().setEnabled(false); // Disable controls on error
+        }
+
+        // Function to show loading message
+        function showLoading(message) {
+            loadingText.textContent = message || 'Loading...';
+            loadingIndicator.style.display = 'block';
+            errorMessage.style.display = 'none';
+        }
+
+        // Function to hide loading message
+        function hideLoading() {
+            loadingIndicator.style.display = 'none';
+        }
+
+        // Function to update and show channel info overlay
+        function showChannelInfo(logoUrl, name) {
+            channelLogo.src = logoUrl || 'https://placehold.co/40x40/374151/E5E7EB?text=?'; // Fallback
+            channelLogo.style.display = logoUrl ? 'block' : 'none';
+            channelName.textContent = name || 'Unknown Channel';
+            channelInfo.classList.remove('hidden');
+
+            if (infoHideTimeout) clearTimeout(infoHideTimeout);
+            infoHideTimeout = setTimeout(() => {
+                channelInfo.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Function to show the Telegram alert
+        function showAlert() {
+            alertOverlay.classList.add('visible');
+        }
+
+        // Function to close the Telegram alert
+        function closeAlert() {
+            alertOverlay.classList.remove('visible');
+        }
+
+        // Function to find channel details in M3U content
+        function findChannelInM3U(content, targetId) {
+             const lines = content.split('\n');
+             let currentChannel = null;
+
+             for (let i = 0; i < lines.length; i++) {
+                 const line = lines[i].trim();
+
+                 if (line.startsWith('#EXTINF:')) {
+                     // Reset in case previous entry was incomplete
+                     currentChannel = null;
+                     // Try to parse the line
+                     const infoMatch = line.match(/#EXTINF:.*?tvg-id="([^"]+)".*?tvg-logo="([^"]+)".*?,(.*)$/);
+                     if (infoMatch && infoMatch[1] === targetId) {
+                          currentChannel = {
+                               id: infoMatch[1],
+                               logo: infoMatch[2],
+                               name: infoMatch[3].trim(),
+                               licenseKey: null, cookie: null, streamUrl: null
+                          };
+                     }
+                 } else if (currentChannel) { // Only process if we found a matching EXTINF line
+                     if (line.startsWith('#KODIPROP:inputstream.adaptive.license_key=')) {
+                          const keyMatch = line.match(/license_key=([^:\s]+):([^\s]+)/);
+                          if (keyMatch) {
+                               currentChannel.licenseKey = `${keyMatch[1]}:${keyMatch[2]}`;
+                          }
+                     } else if (line.startsWith('#EXTHTTP:')) {
+                          try {
+                               const jsonMatch = line.match(/#EXTHTTP:\s*(\{.*\})/);
+                               if (jsonMatch) {
+                                    const data = JSON.parse(jsonMatch[1]);
+                                    if (data.cookie) { currentChannel.cookie = data.cookie; }
+                               }
+                          } catch (e) { console.warn('Could not parse cookie JSON:', e, line); }
+                     } else if (line.startsWith('http')) {
+                          // This is the stream URL for the currentChannel
+                          currentChannel.streamUrl = line;
+                          // Found all parts for the target channel
+                          return currentChannel;
+                     }
+                 }
+             }
+             // Target channel ID not found, or stream URL was missing
+             return null;
+        }
+
+
+        // Fetch M3U and get specific channel data
+        async function fetchChannelData(channelId) {
+            showLoading(`Fetching channel ${channelId}...`);
+            const m3uUrl = "https://raw.githubusercontent.com/alex8875/m3u/main/jstar.m3u";
+            try {
+                const response = await fetch(m3uUrl);
+                if (!response.ok) { throw new Error(`Failed to fetch playlist: ${response.statusText}`); }
+                const content = await response.text();
+                const channel = findChannelInM3U(content, channelId);
+
+                if (!channel) { throw new Error(`Channel ID ${channelId} not found.`); }
+                if (!channel.streamUrl) { throw new Error(`Stream URL not found for channel ID ${channelId}. Check M3U format.`); }
+                if (!channel.licenseKey) { console.warn(`License key not found for channel ID ${channelId}. Playback might fail if DRM is required.`);}
+
+                return channel;
+            } catch (error) {
+                showError(`Error fetching channel data: ${error.message}`);
+                return null;
+            }
+        }
+
+        // Initialize Shaka Player
+        async function initPlayer(channel) {
+            if (!channel || !channel.streamUrl) {
+                showError("Cannot initialize player: Invalid channel data.");
+                return;
+            }
+
+            showLoading(`Loading ${channel.name}...`);
+            showChannelInfo(channel.logo, channel.name);
+
+            try {
+                shaka.polyfill.installAll();
+            } catch (polyfillError) {
+                 console.error("Shaka polyfill installation failed:", polyfillError);
+                showError('Shaka polyfill installation failed. Your browser might be too old or incompatible.');
+                return;
+            }
+
+            if (!shaka.Player.isBrowserSupported()) {
+                showError('Browser not supported by Shaka Player.');
+                return;
+            }
+
+            player = new shaka.Player(video);
+
+            // Setup UI
+            const uiContainer = video.parentElement;
+            try {
+                 ui = new shaka.ui.Overlay(player, uiContainer, video);
+                 const uiConfig = {
+                      'controlPanelElements': [
+                           'play_pause', 'time_and_duration', 'mute', 'volume',
+                           'spacer', 'language', 'captions', 'picture_in_picture',
+                           'quality', 'fullscreen'
+                      ],
+                      'seekBarColors': { base: 'rgba(55, 65, 81, 1)', buffered: 'rgba(75, 85, 99, 1)', played: 'rgba(59, 130, 246, 1)' },
+                      //'volumeBarColors': { base: 'rgba(59, 130, 246, 1)', level: 'rgba(229, 231, 235, 1)' }, // Handled dynamically below
+                      'customContextMenu': true,
+                      'contextMenuElements': ['statistics'], // Correct placement for statistics
+                      'enableTooltips': true
+                 };
+                 ui.configure(uiConfig);
+
+                 // Volume bar color update logic
+                 const volumeContainer = uiContainer.querySelector('.shaka-volume-bar-container');
+                 if (volumeContainer) {
+                     const updateVolumeBar = () => {
+                          const percent = video.muted ? 0 : video.volume * 100;
+                          // Use CSS variable for volume level color
+                          volumeContainer.style.setProperty('--volume-percent', `${percent}%`);
+                     };
+                     video.addEventListener('volumechange', updateVolumeBar);
+                     updateVolumeBar(); // Initial setting
+                 } else {
+                     console.warn("Could not find volume bar container for dynamic styling.");
+                 }
+
+            } catch (uiError) {
+                 console.error("Failed to initialize player UI:", uiError);
+                 showError(`Failed to initialize player UI: ${uiError.message}`);
+                 return; // Stop if UI fails
+            }
+
+            // Configure player
+            let drmConfig = {};
+            if (channel.licenseKey) {
+                 const [keyId, keyValue] = channel.licenseKey.split(':');
+                 if (keyId && keyValue && keyId.length === 32 && keyValue.length === 32) { // Basic sanity check
+                      drmConfig = { clearKeys: { [keyId]: keyValue } };
+                      console.log("DRM config applied:", JSON.stringify(drmConfig));
+                 } else {
+                      console.warn("Invalid license key format detected:", channel.licenseKey, "- Attempting playback without DRM.");
+                 }
+            } else {
+                 console.log("No license key found. Assuming clear content.");
+            }
+
+            try {
+                player.configure({
+                    drm: drmConfig,
+                    streaming: {
+                        lowLatencyMode: true, // Enable for potentially faster start
+                        inaccurateManifestTolerance: 2, // Default
+                        rebufferingGoal: 2, // Start playing faster after stall
+                        bufferingGoal: 15, // Buffer ahead 15 seconds
+                        bufferBehind: 30, // Keep 30 seconds behind
+                        retryParameters: defaultRetryParams, // Use explicit defaults
+                        segmentPrefetchLimit: 2,
+                        useNativeHlsOnSafari: true
+                    },
+                    manifest: {
+                        retryParameters: defaultRetryParams, // Use explicit defaults
+                        dash: { ignoreMinBufferTime: true }, // Helps with live streams sometimes
+                        hls: { ignoreTextStreamFailures: true } // Don't fail if subtitle track errors
+                    },
+                    abr: {
+                         enabled: true, // Enable adaptive bitrate
+                         defaultBandwidthEstimate: 1000000 // Start with 1 Mbps estimate
+                    }
+                });
+            } catch (configError) {
+                 console.error("Player configuration error:", configError);
+                 showError(`Player configuration error: ${configError.message}`);
+                 return;
+            }
+
+            // Add request filter for headers
+            player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                 // Only add Referer for manifest and license requests, not segments
+                if (type === shaka.net.NetworkingEngine.RequestType.MANIFEST || type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
+                    request.headers['Referer'] = 'https://www.jiotv.com/';
+                }
+                request.headers['User-Agent'] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
+                if (channel.cookie) { request.headers['Cookie'] = channel.cookie; }
+            });
+
+            // Player event listeners
+            player.addEventListener('error', onErrorEvent);
+            video.addEventListener('playing', onPlaying);
+            video.addEventListener('waiting', onBuffering);
+            video.addEventListener('error', onVideoError); // Catch video element errors too
+
+            // Attempt to load the stream
+            try {
+                await player.load(channel.streamUrl);
+                console.log('Manifest loaded successfully!');
+                // Autoplay attempt (browser might block it)
+                video.play().catch(e => {
+                     console.warn("Autoplay was prevented:", e.message, "User interaction might be required.");
+                     // Show a play button overlay or prompt if needed
+                });
+                // Show Telegram alert after a short delay
+                setTimeout(showAlert, 3000); // Show alert 3 seconds after load attempt
+            } catch (loadError) {
+                onError(loadError); // Handle Shaka load errors specifically
+            }
+        }
+
+        // --- Error handling functions ---
+        function onErrorEvent(event) { onError(event.detail); }
+        function onError(error) {
+            console.error('Shaka Player Error:', error.code, error.message, error.data); // Log full data
+            let userMessage = `Error ${error.code}: ${error.message}`;
+
+             switch (error.code) {
+                 case shaka.util.Error.Code.LOAD_TIMEOUT:
+                     userMessage = "The connection timed out while loading the video.";
+                     break;
+                 case shaka.util.Error.Code.NETWORK_ERROR:
+                     userMessage = "A network error occurred. Please check your connection.";
+                     break;
+                 case shaka.util.Error.Code.HTTP_ERROR:
+                     userMessage = `HTTP error: ${error.data[1]}`; // data[1] is the status code
+                     break;
+                 case shaka.util.Error.Code.BAD_HTTP_STATUS:
+                      userMessage = `Failed to load (Status: ${error.data[1]}). Stream might be offline or access denied.`; // data[1] is status code
+                      if (error.data[1] === 403) {
+                           userMessage += " (Forbidden - Likely a domain restriction)";
+                      }
+                      break;
+                 case shaka.util.Error.Code.LICENSE_REQUEST_FAILED:
+                 case shaka.util.Error.Code.LICENSE_RESPONSE_REJECTED:
+                 case shaka.util.Error.Code.DRM_FAILED_TO_CREATE_CDM:
+                 case shaka.util.Error.Code.DRM_INVALID_LICENSE_SERVER_URL:
+                      userMessage = "Could not get playback license (DRM issue). The content might be protected.";
+                      break;
+                 case shaka.util.Error.Code.MANIFEST_PARSE_ERROR:
+                      userMessage = "Error parsing the stream information (manifest).";
+                      break;
+                 case shaka.util.Error.Code.STREAMING_CODEC_NOT_SUPPORTED:
+                      userMessage = "Video format (codec) not supported by your browser.";
+                      break;
+                 // Add more specific cases if needed based on common errors
+             }
+            showError(userMessage);
+        }
+        // Handle direct video element errors (less common with Shaka, but good practice)
+        function onVideoError(event) {
+             const videoError = video.error;
+             if (videoError && !player.isLive()) { // Don't show if Shaka handled it
+                  let message = `Video playback error ${videoError.code}.`;
+                   switch (videoError.code) {
+                       case MediaError.MEDIA_ERR_DECODE: message += " The video couldn't be decoded."; break;
+                       case MediaError.MEDIA_ERR_NETWORK: message += " A network error interrupted playback."; break;
+                       case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: message += " The video format is not supported."; break;
+                   }
+                  showError(message);
+             }
+        }
+        function onBuffering() {
+             // Only show buffering if not seeking and not already showing an error
+             if (!video.seeking && errorMessage.style.display !== 'block') {
+                  showLoading('Buffering...');
+             }
+        }
+        function onPlaying() {
+             // Hide loading/buffering message when playback starts/resumes
+             hideLoading();
+             // Reshow channel info briefly on play/resume
+             showChannelInfo(channelLogo.src, channelName.textContent);
+        }
+
+        // --- Main function to initialize ---
+        async function main() {
+            const channelId = getChannelIdFromUrl();
+            if (!channelId) {
+                showError('No channel ID found in the URL. Append "?id=<channel_id>"');
+                return;
+            }
+
+            const channelData = await fetchChannelData(channelId);
+            if (channelData) {
+                // Ensure Shaka library is loaded before initializing player
+                 if (typeof shaka !== 'undefined' && shaka.Player) {
+                     await initPlayer(channelData);
+                 } else {
+                      showError('Shaka Player library failed to load. Please refresh the page.');
+                      console.error('Shaka object is not available.');
+                 }
+            }
+            // Error during fetchChannelData is handled within that function by calling showError
+        }
+
+        // Start the process when the DOM is ready
+        document.addEventListener('DOMContentLoaded', main);
+
+    </script>
+</body>
+</html>
+
+
+
