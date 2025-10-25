@@ -270,13 +270,8 @@
 
         // --- Explicit Default Retry Parameters (FIX for TypeError) ---
         const defaultRetryParams = {
-          maxAttempts: 2, // Maximum number of attempts
-          baseDelay: 1000, // Initial delay in milliseconds
-          backoffFactor: 2, // Multiplier for delay
-          fuzzFactor: 0.5, // Randomness factor
-          timeout: 30000, // Request timeout in milliseconds (30 seconds)
-          stallTimeout: 5000, // Timeout for stalls in milliseconds (5 seconds)
-          connectionTimeout: 10000 // Connection timeout (10 seconds)
+          maxAttempts: 2, baseDelay: 1000, backoffFactor: 2, fuzzFactor: 0.5,
+          timeout: 30000, stallTimeout: 5000, connectionTimeout: 10000
         };
 
         // Function to get channel ID from URL
@@ -292,7 +287,7 @@
             errorMessage.style.display = 'block';
             loadingIndicator.style.display = 'none';
             channelInfo.classList.add('hidden');
-            if (ui && ui.getControls()) ui.getControls().setEnabled(false); // Disable controls on error
+            if (ui && ui.getControls()) ui.getControls().setEnabled(false);
         }
 
         // Function to show loading message
@@ -309,74 +304,50 @@
 
         // Function to update and show channel info overlay
         function showChannelInfo(logoUrl, name) {
-            channelLogo.src = logoUrl || 'https://placehold.co/40x40/374151/E5E7EB?text=?'; // Fallback
+            channelLogo.src = logoUrl || 'https://placehold.co/40x40/374151/E5E7EB?text=?';
             channelLogo.style.display = logoUrl ? 'block' : 'none';
             channelName.textContent = name || 'Unknown Channel';
             channelInfo.classList.remove('hidden');
-
             if (infoHideTimeout) clearTimeout(infoHideTimeout);
-            infoHideTimeout = setTimeout(() => {
-                channelInfo.classList.add('hidden');
-            }, 5000);
+            infoHideTimeout = setTimeout(() => channelInfo.classList.add('hidden'), 5000);
         }
 
-        // Function to show the Telegram alert
-        function showAlert() {
-            alertOverlay.classList.add('visible');
-        }
-
-        // Function to close the Telegram alert
-        function closeAlert() {
-            alertOverlay.classList.remove('visible');
-        }
+        // Function to show/close the Telegram alert
+        function showAlert() { alertOverlay.classList.add('visible'); }
+        function closeAlert() { alertOverlay.classList.remove('visible'); }
 
         // Function to find channel details in M3U content
         function findChannelInM3U(content, targetId) {
              const lines = content.split('\n');
              let currentChannel = null;
-
              for (let i = 0; i < lines.length; i++) {
                  const line = lines[i].trim();
-
                  if (line.startsWith('#EXTINF:')) {
-                     // Reset in case previous entry was incomplete
                      currentChannel = null;
-                     // Try to parse the line
                      const infoMatch = line.match(/#EXTINF:.*?tvg-id="([^"]+)".*?tvg-logo="([^"]+)".*?,(.*)$/);
                      if (infoMatch && infoMatch[1] === targetId) {
-                          currentChannel = {
-                               id: infoMatch[1],
-                               logo: infoMatch[2],
-                               name: infoMatch[3].trim(),
-                               licenseKey: null, cookie: null, streamUrl: null
-                          };
+                          currentChannel = { id: infoMatch[1], logo: infoMatch[2], name: infoMatch[3].trim(), licenseKey: null, cookie: null, streamUrl: null };
                      }
-                 } else if (currentChannel) { // Only process if we found a matching EXTINF line
+                 } else if (currentChannel) {
                      if (line.startsWith('#KODIPROP:inputstream.adaptive.license_key=')) {
                           const keyMatch = line.match(/license_key=([^:\s]+):([^\s]+)/);
-                          if (keyMatch) {
-                               currentChannel.licenseKey = `${keyMatch[1]}:${keyMatch[2]}`;
-                          }
+                          if (keyMatch) currentChannel.licenseKey = `${keyMatch[1]}:${keyMatch[2]}`;
                      } else if (line.startsWith('#EXTHTTP:')) {
                           try {
                                const jsonMatch = line.match(/#EXTHTTP:\s*(\{.*\})/);
                                if (jsonMatch) {
                                     const data = JSON.parse(jsonMatch[1]);
-                                    if (data.cookie) { currentChannel.cookie = data.cookie; }
+                                    if (data.cookie) currentChannel.cookie = data.cookie;
                                }
                           } catch (e) { console.warn('Could not parse cookie JSON:', e, line); }
                      } else if (line.startsWith('http')) {
-                          // This is the stream URL for the currentChannel
                           currentChannel.streamUrl = line;
-                          // Found all parts for the target channel
-                          return currentChannel;
+                          return currentChannel; // Found all parts
                      }
                  }
              }
-             // Target channel ID not found, or stream URL was missing
-             return null;
+             return null; // Not found or incomplete
         }
-
 
         // Fetch M3U and get specific channel data
         async function fetchChannelData(channelId) {
@@ -384,14 +355,12 @@
             const m3uUrl = "https://raw.githubusercontent.com/alex8875/m3u/main/jstar.m3u";
             try {
                 const response = await fetch(m3uUrl);
-                if (!response.ok) { throw new Error(`Failed to fetch playlist: ${response.statusText}`); }
+                if (!response.ok) throw new Error(`Failed to fetch playlist: ${response.statusText}`);
                 const content = await response.text();
                 const channel = findChannelInM3U(content, channelId);
-
-                if (!channel) { throw new Error(`Channel ID ${channelId} not found.`); }
-                if (!channel.streamUrl) { throw new Error(`Stream URL not found for channel ID ${channelId}. Check M3U format.`); }
-                if (!channel.licenseKey) { console.warn(`License key not found for channel ID ${channelId}. Playback might fail if DRM is required.`);}
-
+                if (!channel) throw new Error(`Channel ID ${channelId} not found.`);
+                if (!channel.streamUrl) throw new Error(`Stream URL not found for channel ID ${channelId}.`);
+                if (!channel.licenseKey) console.warn(`License key not found for channel ID ${channelId}.`);
                 return channel;
             } catch (error) {
                 showError(`Error fetching channel data: ${error.message}`);
@@ -405,22 +374,15 @@
                 showError("Cannot initialize player: Invalid channel data.");
                 return;
             }
-
             showLoading(`Loading ${channel.name}...`);
             showChannelInfo(channel.logo, channel.name);
 
-            try {
-                shaka.polyfill.installAll();
-            } catch (polyfillError) {
+            try { shaka.polyfill.installAll(); }
+            catch (polyfillError) {
                  console.error("Shaka polyfill installation failed:", polyfillError);
-                showError('Shaka polyfill installation failed. Your browser might be too old or incompatible.');
-                return;
+                 showError('Browser might be too old or incompatible.'); return;
             }
-
-            if (!shaka.Player.isBrowserSupported()) {
-                showError('Browser not supported by Shaka Player.');
-                return;
-            }
+            if (!shaka.Player.isBrowserSupported()) { showError('Browser not supported by Shaka Player.'); return; }
 
             player = new shaka.Player(video);
 
@@ -428,203 +390,132 @@
             const uiContainer = video.parentElement;
             try {
                  ui = new shaka.ui.Overlay(player, uiContainer, video);
-                 const uiConfig = {
-                      'controlPanelElements': [
-                           'play_pause', 'time_and_duration', 'mute', 'volume',
-                           'spacer', 'language', 'captions', 'picture_in_picture',
-                           'quality', 'fullscreen'
-                      ],
+                 ui.configure({
+                      'controlPanelElements': ['play_pause', 'time_and_duration', 'mute', 'volume', 'spacer', 'language', 'captions', 'picture_in_picture', 'quality', 'fullscreen'],
                       'seekBarColors': { base: 'rgba(55, 65, 81, 1)', buffered: 'rgba(75, 85, 99, 1)', played: 'rgba(59, 130, 246, 1)' },
-                      //'volumeBarColors': { base: 'rgba(59, 130, 246, 1)', level: 'rgba(229, 231, 235, 1)' }, // Handled dynamically below
-                      'customContextMenu': true,
-                      'contextMenuElements': ['statistics'], // Correct placement for statistics
-                      'enableTooltips': true
-                 };
-                 ui.configure(uiConfig);
-
-                 // Volume bar color update logic
+                      'customContextMenu': true, 'contextMenuElements': ['statistics'], 'enableTooltips': true
+                 });
+                 // Volume bar styling (same as before)
                  const volumeContainer = uiContainer.querySelector('.shaka-volume-bar-container');
                  if (volumeContainer) {
-                     const updateVolumeBar = () => {
-                          const percent = video.muted ? 0 : video.volume * 100;
-                          // Use CSS variable for volume level color
-                          volumeContainer.style.setProperty('--volume-percent', `${percent}%`);
-                     };
-                     video.addEventListener('volumechange', updateVolumeBar);
-                     updateVolumeBar(); // Initial setting
-                 } else {
-                     console.warn("Could not find volume bar container for dynamic styling.");
+                     const updateVolumeBar = () => { const percent = video.muted ? 0 : video.volume * 100; volumeContainer.style.setProperty('--volume-percent', `${percent}%`); };
+                     video.addEventListener('volumechange', updateVolumeBar); updateVolumeBar();
                  }
+            } catch (uiError) { console.error("Failed to initialize player UI:", uiError); showError(`Failed to initialize UI: ${uiError.message}`); return; }
 
-            } catch (uiError) {
-                 console.error("Failed to initialize player UI:", uiError);
-                 showError(`Failed to initialize player UI: ${uiError.message}`);
-                 return; // Stop if UI fails
-            }
-
-            // Configure player
+            // Configure player DRM
             let drmConfig = {};
             if (channel.licenseKey) {
                  const [keyId, keyValue] = channel.licenseKey.split(':');
-                 if (keyId && keyValue && keyId.length === 32 && keyValue.length === 32) { // Basic sanity check
+                 if (keyId && keyValue && keyId.length === 32 && keyValue.length === 32) {
                       drmConfig = { clearKeys: { [keyId]: keyValue } };
-                      console.log("DRM config applied:", JSON.stringify(drmConfig));
-                 } else {
-                      console.warn("Invalid license key format detected:", channel.licenseKey, "- Attempting playback without DRM.");
-                 }
-            } else {
-                 console.log("No license key found. Assuming clear content.");
-            }
+                 } else { console.warn("Invalid license key format:", channel.licenseKey); }
+            } else { console.log("No license key found."); }
 
+            // Configure player streaming and manifest settings
             try {
                 player.configure({
                     drm: drmConfig,
-                    streaming: {
-                        lowLatencyMode: true, // Enable for potentially faster start
-                        inaccurateManifestTolerance: 2, // Default
-                        rebufferingGoal: 2, // Start playing faster after stall
-                        bufferingGoal: 15, // Buffer ahead 15 seconds
-                        bufferBehind: 30, // Keep 30 seconds behind
-                        retryParameters: defaultRetryParams, // Use explicit defaults
-                        segmentPrefetchLimit: 2,
-                        useNativeHlsOnSafari: true
-                    },
-                    manifest: {
-                        retryParameters: defaultRetryParams, // Use explicit defaults
-                        dash: { ignoreMinBufferTime: true }, // Helps with live streams sometimes
-                        hls: { ignoreTextStreamFailures: true } // Don't fail if subtitle track errors
-                    },
-                    abr: {
-                         enabled: true, // Enable adaptive bitrate
-                         defaultBandwidthEstimate: 1000000 // Start with 1 Mbps estimate
-                    }
+                    streaming: { lowLatencyMode: true, inaccurateManifestTolerance: 2, rebufferingGoal: 2, bufferingGoal: 15, bufferBehind: 30, retryParameters: defaultRetryParams, segmentPrefetchLimit: 2, useNativeHlsOnSafari: true },
+                    manifest: { retryParameters: defaultRetryParams, dash: { ignoreMinBufferTime: true }, hls: { ignoreTextStreamFailures: true } },
+                    abr: { enabled: true, defaultBandwidthEstimate: 1000000 }
                 });
-            } catch (configError) {
-                 console.error("Player configuration error:", configError);
-                 showError(`Player configuration error: ${configError.message}`);
-                 return;
-            }
+            } catch (configError) { console.error("Player configuration error:", configError); showError(`Config error: ${configError.message}`); return; }
 
-            // Add request filter for headers
+            // --- *** RESTORED REQUEST FILTER WITH URI APPENDING *** ---
             player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                 // Only add Referer for manifest and license requests, not segments
-                if (type === shaka.net.NetworkingEngine.RequestType.MANIFEST || type === shaka.net.NetworkingEngine.RequestType.LICENSE) {
-                    request.headers['Referer'] = 'https://www.jiotv.com/';
-                }
+                request.headers['Referer'] = 'https://www.jiotv.com/'; // Set Referer for all requests
                 request.headers['User-Agent'] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
-                if (channel.cookie) { request.headers['Cookie'] = channel.cookie; }
+
+                const cookieHeader = channel.cookie; // Use the cookie from the fetched channel data
+
+                if (cookieHeader) {
+                    request.headers['Cookie'] = cookieHeader; // Set the standard Cookie header
+
+                    // Also append to URI for MANIFEST and SEGMENT requests if needed
+                    if (
+                        (type === shaka.net.NetworkingEngine.RequestType.MANIFEST ||
+                         type === shaka.net.NetworkingEngine.RequestType.SEGMENT) &&
+                        request.uris[0] && !request.uris[0].includes('__hdnea__=') // Check seems important
+                    ) {
+                        try {
+                             // Ensure we only append non-empty strings
+                             if (typeof cookieHeader === 'string' && cookieHeader.trim() !== '') {
+                                 const separator = request.uris[0].includes('?') ? '&' : '?';
+                                 request.uris[0] += separator + cookieHeader;
+                                 // console.log("Appended cookie to URL:", request.uris[0]); // Optional: for debugging
+                             }
+                        } catch (uriError) {
+                             console.error("Error appending cookie to URI:", uriError);
+                        }
+                    }
+                }
             });
+
 
             // Player event listeners
             player.addEventListener('error', onErrorEvent);
             video.addEventListener('playing', onPlaying);
             video.addEventListener('waiting', onBuffering);
-            video.addEventListener('error', onVideoError); // Catch video element errors too
+            video.addEventListener('error', onVideoError);
 
             // Attempt to load the stream
             try {
                 await player.load(channel.streamUrl);
                 console.log('Manifest loaded successfully!');
-                // Autoplay attempt (browser might block it)
-                video.play().catch(e => {
-                     console.warn("Autoplay was prevented:", e.message, "User interaction might be required.");
-                     // Show a play button overlay or prompt if needed
-                });
-                // Show Telegram alert after a short delay
-                setTimeout(showAlert, 3000); // Show alert 3 seconds after load attempt
+                video.play().catch(e => console.warn("Autoplay was prevented:", e.message));
+                setTimeout(showAlert, 3000); // Show alert after load
             } catch (loadError) {
-                onError(loadError); // Handle Shaka load errors specifically
+                onError(loadError); // Handle Shaka load errors
             }
         }
 
         // --- Error handling functions ---
         function onErrorEvent(event) { onError(event.detail); }
         function onError(error) {
-            console.error('Shaka Player Error:', error.code, error.message, error.data); // Log full data
+            console.error('Shaka Player Error:', error.code, error.message, error.data);
             let userMessage = `Error ${error.code}: ${error.message}`;
-
-             switch (error.code) {
-                 case shaka.util.Error.Code.LOAD_TIMEOUT:
-                     userMessage = "The connection timed out while loading the video.";
-                     break;
-                 case shaka.util.Error.Code.NETWORK_ERROR:
-                     userMessage = "A network error occurred. Please check your connection.";
-                     break;
-                 case shaka.util.Error.Code.HTTP_ERROR:
-                     userMessage = `HTTP error: ${error.data[1]}`; // data[1] is the status code
-                     break;
+             switch (error.code) { /* ... (error messages same as previous version) ... */
+                 case shaka.util.Error.Code.LOAD_TIMEOUT: userMessage = "The connection timed out."; break;
+                 case shaka.util.Error.Code.NETWORK_ERROR: userMessage = "Network error. Check connection."; break;
+                 case shaka.util.Error.Code.HTTP_ERROR: userMessage = `HTTP error: ${error.data[1]}`; break;
                  case shaka.util.Error.Code.BAD_HTTP_STATUS:
-                      userMessage = `Failed to load (Status: ${error.data[1]}). Stream might be offline or access denied.`; // data[1] is status code
-                      if (error.data[1] === 403) {
-                           userMessage += " (Forbidden - Likely a domain restriction)";
-                      }
+                      userMessage = `Failed to load (Status: ${error.data[1]}). Stream might be offline or access denied.`;
+                      if (error.data[1] === 403) userMessage += " (Forbidden - Likely a domain restriction)";
                       break;
-                 case shaka.util.Error.Code.LICENSE_REQUEST_FAILED:
-                 case shaka.util.Error.Code.LICENSE_RESPONSE_REJECTED:
-                 case shaka.util.Error.Code.DRM_FAILED_TO_CREATE_CDM:
-                 case shaka.util.Error.Code.DRM_INVALID_LICENSE_SERVER_URL:
-                      userMessage = "Could not get playback license (DRM issue). The content might be protected.";
-                      break;
-                 case shaka.util.Error.Code.MANIFEST_PARSE_ERROR:
-                      userMessage = "Error parsing the stream information (manifest).";
-                      break;
-                 case shaka.util.Error.Code.STREAMING_CODEC_NOT_SUPPORTED:
-                      userMessage = "Video format (codec) not supported by your browser.";
-                      break;
-                 // Add more specific cases if needed based on common errors
+                 case shaka.util.Error.Code.LICENSE_REQUEST_FAILED: case shaka.util.Error.Code.LICENSE_RESPONSE_REJECTED: userMessage = "DRM license issue."; break;
+                 case shaka.util.Error.Code.MANIFEST_PARSE_ERROR: userMessage = "Error parsing stream info."; break;
+                 case shaka.util.Error.Code.STREAMING_CODEC_NOT_SUPPORTED: userMessage = "Video format not supported."; break;
              }
             showError(userMessage);
         }
-        // Handle direct video element errors (less common with Shaka, but good practice)
-        function onVideoError(event) {
+        function onVideoError(event) { /* ... (same as previous version) ... */
              const videoError = video.error;
-             if (videoError && !player.isLive()) { // Don't show if Shaka handled it
-                  let message = `Video playback error ${videoError.code}.`;
+             if (videoError && !player.isLive()) {
+                  let message = `Video error ${videoError.code}.`;
                    switch (videoError.code) {
-                       case MediaError.MEDIA_ERR_DECODE: message += " The video couldn't be decoded."; break;
-                       case MediaError.MEDIA_ERR_NETWORK: message += " A network error interrupted playback."; break;
-                       case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: message += " The video format is not supported."; break;
+                       case MediaError.MEDIA_ERR_DECODE: message += " Decode error."; break;
+                       case MediaError.MEDIA_ERR_NETWORK: message += " Network interrupted."; break;
+                       case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: message += " Format not supported."; break;
                    }
                   showError(message);
              }
         }
-        function onBuffering() {
-             // Only show buffering if not seeking and not already showing an error
-             if (!video.seeking && errorMessage.style.display !== 'block') {
-                  showLoading('Buffering...');
-             }
-        }
-        function onPlaying() {
-             // Hide loading/buffering message when playback starts/resumes
-             hideLoading();
-             // Reshow channel info briefly on play/resume
-             showChannelInfo(channelLogo.src, channelName.textContent);
-        }
+        function onBuffering() { if (!video.seeking && errorMessage.style.display !== 'block') { showLoading('Buffering...'); } }
+        function onPlaying() { hideLoading(); showChannelInfo(channelLogo.src, channelName.textContent); }
 
         // --- Main function to initialize ---
         async function main() {
             const channelId = getChannelIdFromUrl();
-            if (!channelId) {
-                showError('No channel ID found in the URL. Append "?id=<channel_id>"');
-                return;
-            }
-
+            if (!channelId) { showError('No channel ID found in URL.'); return; }
             const channelData = await fetchChannelData(channelId);
             if (channelData) {
-                // Ensure Shaka library is loaded before initializing player
                  if (typeof shaka !== 'undefined' && shaka.Player) {
                      await initPlayer(channelData);
-                 } else {
-                      showError('Shaka Player library failed to load. Please refresh the page.');
-                      console.error('Shaka object is not available.');
-                 }
+                 } else { showError('Shaka Player library failed to load.'); console.error('Shaka object missing.'); }
             }
-            // Error during fetchChannelData is handled within that function by calling showError
         }
-
-        // Start the process when the DOM is ready
         document.addEventListener('DOMContentLoaded', main);
-
     </script>
 </body>
 </html>
