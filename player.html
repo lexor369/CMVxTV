@@ -16,13 +16,13 @@
         html, body {
             margin: 0; padding: 0; box-sizing: border-box;
             background: #000;
-            height: 100%; width: 100%;
+            height: 100%; width: 100%; /* Use % to fill parent */
             overflow: hidden; /* Prevent scrollbars */
             font-family: 'Inter', sans-serif;
             color: #E5E7EB;
             position: relative; /* Context for absolute children */
         }
-        /* Make Shaka container fill the body absolutely - Reverted to simpler version */
+        /* Make Shaka container fill the body absolutely */
          [data-shaka-player-container] {
              position: absolute;
              top: 0; left: 0; right: 0; bottom: 0;
@@ -30,7 +30,7 @@
              z-index: 1;
         }
 
-        /* Video should fill container, maintain aspect ratio */
+        /* Video fills container, respects aspect ratio */
         video {
             width: 100%; height: 100%;
             display: block;
@@ -40,15 +40,21 @@
         /* Hide Shaka's built-in spinner */
         .shaka-spinner-container { display: none !important; }
 
-        /* --- UI FIX: Hide the large central button reliably when playing/buffering --- */
-        /* Target the button container specifically within the player container */
-        [data-shaka-player-container].shaka-playing .shaka-play-button-container,
-        [data-shaka-player-container][data-shaka-player-state="playing"] .shaka-play-button-container,
-        [data-shaka-player-container][data-shaka-player-state="buffering"] .shaka-play-button-container {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
+        /* --- UI FIX: Force Hide the large central button when playing/buffering --- */
+        /* Use direct child selectors for potentially higher specificity */
+        [data-shaka-player-container].shaka-playing > .shaka-controls-container > .shaka-play-button-container,
+        [data-shaka-player-container][data-shaka-player-state="playing"] > .shaka-controls-container > .shaka-play-button-container,
+        [data-shaka-player-container][data-shaka-player-state="buffering"] > .shaka-controls-container > .shaka-play-button-container {
+            display: none !important; /* Force hide */
+            visibility: hidden !important; /* Fallback */
+            opacity: 0 !important; /* Fallback */
+            pointer-events: none !important;/* Prevent interaction */
+            z-index: -1 !important; /* Move behind other elements */
+        }
+
+        /* --- Ensure controls fade even on touch devices (from previous attempt, keep just in case) --- */
+        .shaka-controls-container {
+            touch-action: manipulation;
         }
 
         /* Channel info (responsive) */
@@ -72,12 +78,12 @@
         .error-message h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #FECACA; } @media (min-width: 640px) { .error-message h2 { font-size: 1.125rem; } }
         .error-message p { font-size: 0.875rem; } @media (min-width: 640px) { .error-message p { font-size: 1rem; } }
 
-        /* Alert overlay (Backdrop) */
-        .alert-overlay-base { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 50; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; /* Ensure centering styles */ display: flex; align-items: center; justify-content: center; }
+        /* Alert overlay (Backdrop) - Using Flexbox Centering */
+        .alert-overlay-base { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 50; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; /* Centering */ display: flex; align-items: center; justify-content: center; }
         .alert-overlay-base.visible { opacity: 1; visibility: visible; }
 
-        /* Alert Box (Content) - Standard Centering */
-        .alert-box { /* No position needed here, centered by overlay */ background: #1F2937; padding: 1rem; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); text-align: center; color: #E5E7EB; width: 90%; max-width: 300px; z-index: 51; }
+        /* Alert Box (Content) */
+        .alert-box { /* Centered by overlay */ background: #1F2937; padding: 1rem; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); text-align: center; color: #E5E7EB; width: 90%; max-width: 300px; z-index: 51; }
         @media (min-width: 640px) { .alert-box { padding: 1.5rem; max-width: 350px; } }
         .alert-box p { font-size: 0.875rem; margin-bottom: 1rem; } @media (min-width: 640px) { .alert-box p { font-size: 1rem; } }
         .alert-box button { margin: 0.5rem; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; transition: background-color 0.2s ease; }
@@ -131,8 +137,8 @@
 
     <script>
         // --- JAVASCRIPT ---
-        // (JavaScript remains exactly the same as the previous version
-        // - including the ui.configure with fadeDelaySeconds)
+        // (JavaScript remains exactly the same as the previous versions,
+        // including the ui.configure with fadeDelaySeconds)
 
         const video = document.getElementById('video');
         const loadingIndicator = document.getElementById('loadingIndicator');
