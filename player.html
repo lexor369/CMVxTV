@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Crucial for responsiveness -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CMV LIVE Player</title>
     <!-- Shaka Player UI CSS -->
@@ -13,163 +12,63 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        /* Base styles remain the same */
+        /* Base styles */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body {
-            background: #000;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-            font-family: 'Inter', sans-serif;
-            color: #E5E7EB;
-        }
+        html, body { background: #000; height: 100vh; width: 100vw; overflow: hidden; font-family: 'Inter', sans-serif; color: #E5E7EB; }
         .shaka-video-container { position: absolute; inset: 0; width: 100%; height: 100%; }
         video { width: 100%; height: 100%; background: #000; object-fit: contain; }
         .shaka-spinner-container { display: none !important; }
 
-        /* Channel info: Adjusted padding and font size for responsiveness */
-        .channel-info {
-            position: absolute; top: 0; left: 0; right: 0;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
-            /* Responsive padding */
-            padding: 0.5rem 0.75rem; /* p-2 sm:p-3 */
-            display: flex; align-items: center; z-index: 10;
-            transition: opacity 0.3s ease; pointer-events: none;
-        }
-        @media (min-width: 640px) { /* sm breakpoint */
-             .channel-info { padding: 0.75rem 1rem; }
-        }
+        /* Channel info (responsive) */
+        .channel-info { position: absolute; top: 0; left: 0; right: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%); padding: 0.5rem 0.75rem; /* p-2 sm:p-3 */ display: flex; align-items: center; z-index: 10; transition: opacity 0.3s ease; pointer-events: none; }
+        @media (min-width: 640px) { .channel-info { padding: 0.75rem 1rem; } } /* sm:p-4 */
         .channel-info.hidden { opacity: 0; }
+        .channel-logo { width: 28px; height: 28px; /* w-7 h-7 */ margin-right: 0.5rem; /* mr-2 */ border-radius: 0.25rem; background: #374151; object-fit: contain; }
+        @media (min-width: 640px) { .channel-logo { width: 32px; height: 32px; /* sm:w-8 sm:h-8 */ margin-right: 0.75rem; /* sm:mr-3 */ } }
+        .channel-name { font-size: 0.875rem; /* text-sm */ font-weight: 500; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        @media (min-width: 640px) { .channel-name { font-size: 1rem; /* sm:text-base */ } }
 
-        .channel-logo {
-             width: 28px; height: 28px; /* Smaller base size */
-             margin-right: 0.5rem; /* mr-2 */
-             border-radius: 0.25rem; /* rounded-sm */
-             background: #374151; object-fit: contain;
-        }
-         @media (min-width: 640px) { /* sm breakpoint */
-              .channel-logo { width: 32px; height: 32px; margin-right: 0.75rem; /* mr-3 */ } /* w-8 h-8 */
-         }
-
-        .channel-name {
-            /* Responsive font size */
-            font-size: 0.875rem; /* text-sm */
-            line-height: 1.25rem;
-            font-weight: 500; color: white;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        @media (min-width: 640px) { /* sm breakpoint */
-             .channel-name { font-size: 1rem; line-height: 1.5rem; } /* text-base */
-        }
-
-        /* Loading indicator: Adjusted font size */
-        .loading-indicator {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%); z-index: 5; text-align: center;
-        }
-        .loading-indicator p {
-             font-size: 0.875rem; /* text-sm */
-        }
-         @media (min-width: 640px) { /* sm breakpoint */
-              .loading-indicator p { font-size: 1rem; } /* text-base */
-         }
-        .spinner { /* Spinner size remains constant */
-            border: 4px solid rgba(255, 255, 255, 0.3); border-radius: 50%;
-            border-top: 4px solid #3B82F6; width: 40px; height: 40px;
-            animation: spin 1s linear infinite; margin: 0 auto 0.75rem auto; /* mb-3 */
-        }
+        /* Loading indicator (responsive) */
+        .loading-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; text-align: center; }
+        .loading-indicator p { font-size: 0.875rem; } /* text-sm */
+        @media (min-width: 640px) { .loading-indicator p { font-size: 1rem; } } /* sm:text-base */
+        .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top: 4px solid #3B82F6; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 0.75rem auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Error message: Adjusted padding, width, font size */
-        .error-message {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            color: #F87171; background: rgba(17, 24, 39, 0.9);
-            /* Responsive padding */
-            padding: 1rem; /* p-4 */
-            border-radius: 0.5rem; border: 1px solid #374151;
-            /* Responsive width */
-            width: 90%; max-width: 300px; /* max-w-xs */
-            text-align: center; z-index: 20; display: none;
-        }
-        @media (min-width: 640px) { /* sm breakpoint */
-             .error-message { padding: 1.5rem; max-width: 400px; } /* p-6 sm:max-w-sm */
-        }
-        .error-message h2 {
-             /* Responsive font size */
-            font-size: 1rem; /* text-base */
-            font-weight: 600; margin-bottom: 0.5rem; color: #FECACA;
-        }
-         @media (min-width: 640px) { /* sm breakpoint */
-              .error-message h2 { font-size: 1.125rem; } /* text-lg */
-         }
-         .error-message p {
-              font-size: 0.875rem; /* text-sm */
-         }
-          @media (min-width: 640px) { /* sm breakpoint */
-               .error-message p { font-size: 1rem; } /* text-base */
-          }
+        /* Error message (responsive) */
+        .error-message { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #F87171; background: rgba(17, 24, 39, 0.9); padding: 1rem; /* p-4 */ border-radius: 0.5rem; border: 1px solid #374151; width: 90%; max-width: 300px; /* max-w-xs */ text-align: center; z-index: 20; display: none; }
+        @media (min-width: 640px) { .error-message { padding: 1.5rem; max-width: 400px; } } /* sm:p-6 sm:max-w-sm */
+        .error-message h2 { font-size: 1rem; /* text-base */ font-weight: 600; margin-bottom: 0.5rem; color: #FECACA; }
+        @media (min-width: 640px) { .error-message h2 { font-size: 1.125rem; } } /* sm:text-lg */
+        .error-message p { font-size: 0.875rem; } /* text-sm */
+        @media (min-width: 640px) { .error-message p { font-size: 1rem; } } /* sm:text-base */
 
-
-        /* Alert box: Adjusted padding, width, font size */
-        .alert-overlay {
+        /* Alert box OVERLAY styling (Background, Blur, Visibility Transition) */
+        .alert-overlay-base {
              position: fixed; inset: 0;
-             background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
-             display: flex; align-items: center; justify-content: center;
+             background: rgba(0, 0, 0, 0.6);
+             backdrop-filter: blur(4px);
              z-index: 50; opacity: 0; visibility: hidden;
              transition: opacity 0.3s ease, visibility 0.3s ease;
+             /* Centering is now handled by Tailwind classes on the div itself */
         }
-        .alert-overlay.visible { opacity: 1; visibility: visible; }
-        .alert-box {
-             background: #1F2937;
-             /* Responsive padding */
-             padding: 1rem; /* p-4 */
-             border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
-             text-align: center; color: #E5E7EB;
-             /* Responsive width */
-             width: 90%; max-width: 300px; /* max-w-xs */
-        }
-         @media (min-width: 640px) { /* sm breakpoint */
-             .alert-box { padding: 1.5rem; max-width: 350px; } /* p-6 sm:max-w-sm */
-         }
-        .alert-box p {
-             font-size: 0.875rem; /* text-sm */
-             margin-bottom: 1rem;
-        }
-         @media (min-width: 640px) { /* sm breakpoint */
-              .alert-box p { font-size: 1rem; } /* text-base */
-         }
-        .alert-box button {
-             margin: 0.5rem; padding: 0.5rem 1rem; /* py-2 px-4 */
-             border: none; border-radius: 0.5rem; cursor: pointer;
-             font-size: 0.875rem; font-weight: 600; transition: background-color 0.2s ease;
-        }
-         @media (min-width: 640px) { /* sm breakpoint */
-             .alert-box button { padding: 0.625rem 1.25rem; } /* py-2.5 px-5 */
-         }
-        .join-btn { background: #3B82F6; color: white; }
-        .join-btn:hover { background: #2563EB; }
-        .close-btn { background: #10B981; color: white; }
-        .close-btn:hover { background: #059669; }
+        .alert-overlay-base.visible { opacity: 1; visibility: visible; }
 
-        /* Shaka UI Customizations (unchanged from previous) */
-        .shaka-controls-container .shaka-volume-bar-container {
-             --volume-percent: 80%;
-             background: linear-gradient(to right, rgb(229, 231, 235) var(--volume-percent), rgb(59, 130, 246) var(--volume-percent), rgb(59, 130, 246) 100%);
-        }
-        .shaka-controls-container .shaka-seek-bar-container {
-             --seek-before-color: rgba(59, 130, 246, 1);
-             --seek-after-color: rgba(55, 65, 81, 1);
-             --buffered-color: rgba(75, 85, 99, 1);
-             background: var(--seek-after-color);
-        }
-        .shaka-controls-container .shaka-range-element { height: 6px; }
-        .shaka-controls-container .shaka-current-time { color: #E5E7EB; }
-        .shaka-controls-container button { color: #E5E7EB; }
-        .shaka-controls-container .shaka-settings-menu button { color: #111827; }
-        .shaka-controls-container .shaka-settings-menu button span.shaka-chosen-item { color: #3B82F6; font-weight: 600; }
-        .shaka-controls-container .shaka-settings-menu i.shaka-chosen-item { color: #3B82F6; }
-        .shaka-text-container { bottom: 60px !important; }
+        /* Alert BOX styling (Content Box) - unchanged */
+        .alert-box { background: #1F2937; padding: 1rem; /* p-4 */ border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); text-align: center; color: #E5E7EB; width: 90%; max-width: 300px; /* max-w-xs */ }
+        @media (min-width: 640px) { .alert-box { padding: 1.5rem; max-width: 350px; } } /* sm:p-6 sm:max-w-sm */
+        .alert-box p { font-size: 0.875rem; margin-bottom: 1rem; }
+        @media (min-width: 640px) { .alert-box p { font-size: 1rem; } }
+        .alert-box button { margin: 0.5rem; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; transition: background-color 0.2s ease; }
+        @media (min-width: 640px) { .alert-box button { padding: 0.625rem 1.25rem; } }
+        .join-btn { background: #3B82F6; color: white; } .join-btn:hover { background: #2563EB; }
+        .close-btn { background: #10B981; color: white; } .close-btn:hover { background: #059669; }
+
+        /* Shaka UI Customizations (unchanged) */
+        .shaka-controls-container .shaka-volume-bar-container { --volume-percent: 80%; background: linear-gradient(to right, rgb(229, 231, 235) var(--volume-percent), rgb(59, 130, 246) var(--volume-percent), rgb(59, 130, 246) 100%); }
+        .shaka-controls-container .shaka-seek-bar-container { --seek-before-color: rgba(59, 130, 246, 1); --seek-after-color: rgba(55, 65, 81, 1); --buffered-color: rgba(75, 85, 99, 1); background: var(--seek-after-color); }
+        .shaka-controls-container .shaka-range-element { height: 6px; } .shaka-controls-container .shaka-current-time { color: #E5E7EB; } .shaka-controls-container button { color: #E5E7EB; } .shaka-controls-container .shaka-settings-menu button { color: #111827; } .shaka-controls-container .shaka-settings-menu button span.shaka-chosen-item { color: #3B82F6; font-weight: 600; } .shaka-controls-container .shaka-settings-menu i.shaka-chosen-item { color: #3B82F6; } .shaka-text-container { bottom: 60px !important; }
+
     </style>
 </head>
 <body>
@@ -181,7 +80,6 @@
 
     <!-- Shaka Player Container -->
     <div data-shaka-player-container style="width: 100%; height: 100%;">
-        <!-- Video element will contain the player -->
         <video autoplay playsinline id="video" style="width: 100%; height: 100%;"></video>
     </div>
 
@@ -197,8 +95,8 @@
         <p id="errorText"></p>
     </div>
 
-    <!-- Alert Box Overlay -->
-    <div id="alertOverlay" class="alert-overlay">
+    <!-- Alert Box Overlay - NOW WITH TAILWIND CENTERING CLASSES -->
+    <div id="alertOverlay" class="alert-overlay-base flex items-center justify-center">
         <div class="alert-box">
             <p>Join our Channel for More Content & Support!</p>
             <button class="join-btn" onclick="window.open('https://t.me/cricketmemesverse873', '_blank')">Join Channel</button>
@@ -210,6 +108,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.ui.min.js" crossorigin="anonymous"></script>
 
     <script>
+        // --- JAVASCRIPT REMAINS EXACTLY THE SAME AS THE PREVIOUS VERSION ---
         // Constants for DOM elements
         const video = document.getElementById('video');
         const loadingIndicator = document.getElementById('loadingIndicator');
@@ -224,10 +123,10 @@
         let ui = null;
         let infoHideTimeout = null;
 
-        // Default retry parameters (same as before)
+        // Default retry parameters
         const defaultRetryParams = { maxAttempts: 2, baseDelay: 1000, backoffFactor: 2, fuzzFactor: 0.5, timeout: 30000, stallTimeout: 5000, connectionTimeout: 10000 };
 
-        // Helper functions (showError, showLoading, hideLoading, showChannelInfo, showAlert, closeAlert - unchanged)
+        // Helper functions
         function getChannelIdFromUrl() { const urlParams = new URLSearchParams(window.location.search); return urlParams.get('id'); }
         function showError(message) { console.error('Playback Error:', message); errorText.textContent = message || 'An unknown error occurred.'; errorMessage.style.display = 'block'; loadingIndicator.style.display = 'none'; channelInfo.classList.add('hidden'); if (ui && ui.getControls()) ui.getControls().setEnabled(false); }
         function showLoading(message) { loadingText.textContent = message || 'Loading...'; loadingIndicator.style.display = 'block'; errorMessage.style.display = 'none'; }
@@ -236,7 +135,7 @@
         function showAlert() { alertOverlay.classList.add('visible'); }
         function closeAlert() { alertOverlay.classList.remove('visible'); }
 
-        // M3U parsing function (unchanged)
+        // M3U parsing function
         function findChannelInM3U(content, targetId) {
              const lines = content.split('\n'); let currentChannel = null;
              for (let i = 0; i < lines.length; i++) {
@@ -252,7 +151,7 @@
              } return null;
         }
 
-        // Fetch channel data (unchanged)
+        // Fetch channel data
         async function fetchChannelData(channelId) {
             showLoading(`Fetching channel ${channelId}...`); const m3uUrl = "https://raw.githubusercontent.com/alex8875/m3u/main/jstar.m3u";
             try {
@@ -263,7 +162,7 @@
             } catch (error) { showError(`Error fetching channel data: ${error.message}`); return null; }
         }
 
-        // Initialize Shaka Player (includes previous URI appending fix)
+        // Initialize Shaka Player
         async function initPlayer(channel) {
             if (!channel || !channel.streamUrl) { showError("Invalid channel data."); return; }
             showLoading(`Loading ${channel.name}...`); showChannelInfo(channel.logo, channel.name);
@@ -273,23 +172,18 @@
 
             player = new shaka.Player(video);
 
-            // Setup UI (unchanged, includes statistics fix)
+            // Setup UI
             const uiContainer = video.parentElement;
             try {
                  ui = new shaka.ui.Overlay(player, uiContainer, video);
-                 ui.configure({
-                      'controlPanelElements': ['play_pause', 'time_and_duration', 'mute', 'volume', 'spacer', 'language', 'captions', 'picture_in_picture', 'quality', 'fullscreen'],
-                      'seekBarColors': { base: 'rgba(55, 65, 81, 1)', buffered: 'rgba(75, 85, 99, 1)', played: 'rgba(59, 130, 246, 1)' },
-                      'customContextMenu': true, 'contextMenuElements': ['statistics'], 'enableTooltips': true
-                 });
-                 const volumeContainer = uiContainer.querySelector('.shaka-volume-bar-container');
-                 if (volumeContainer) { const updateVolumeBar = () => { const p = video.muted ? 0 : video.volume * 100; volumeContainer.style.setProperty('--volume-percent', `${p}%`); }; video.addEventListener('volumechange', updateVolumeBar); updateVolumeBar(); }
+                 ui.configure({ /* UI config remains the same */ 'controlPanelElements': ['play_pause', 'time_and_duration', 'mute', 'volume', 'spacer', 'language', 'captions', 'picture_in_picture', 'quality', 'fullscreen'], 'seekBarColors': { base: 'rgba(55, 65, 81, 1)', buffered: 'rgba(75, 85, 99, 1)', played: 'rgba(59, 130, 246, 1)' }, 'customContextMenu': true, 'contextMenuElements': ['statistics'], 'enableTooltips': true });
+                 const volumeContainer = uiContainer.querySelector('.shaka-volume-bar-container'); if (volumeContainer) { const updateVolumeBar = () => { const p = video.muted ? 0 : video.volume * 100; volumeContainer.style.setProperty('--volume-percent', `${p}%`); }; video.addEventListener('volumechange', updateVolumeBar); updateVolumeBar(); }
             } catch (e) { console.error("UI Init failed:", e); showError(`UI Init failed: ${e.message}`); return; }
 
-            // Configure player DRM (unchanged)
+            // Configure player DRM
             let drmConfig = {}; if (channel.licenseKey) { const [kId, kVal] = channel.licenseKey.split(':'); if (kId && kVal && kId.length === 32 && kVal.length === 32) drmConfig = { clearKeys: { [kId]: kVal } }; else console.warn("Invalid key format:", channel.licenseKey); }
 
-            // Configure player streaming (unchanged)
+            // Configure player streaming
             try { player.configure({ drm: drmConfig, streaming: { lowLatencyMode: true, inaccurateManifestTolerance: 2, rebufferingGoal: 2, bufferingGoal: 15, bufferBehind: 30, retryParameters: defaultRetryParams, segmentPrefetchLimit: 2, useNativeHlsOnSafari: true }, manifest: { retryParameters: defaultRetryParams, dash: { ignoreMinBufferTime: true }, hls: { ignoreTextStreamFailures: true } }, abr: { enabled: true, defaultBandwidthEstimate: 1000000 } }); }
             catch (e) { console.error("Config error:", e); showError(`Config error: ${e.message}`); return; }
 
@@ -307,29 +201,28 @@
                 }
             });
 
-            // Event listeners (unchanged)
+            // Event listeners
             player.addEventListener('error', onErrorEvent);
             video.addEventListener('playing', onPlaying);
             video.addEventListener('waiting', onBuffering);
             video.addEventListener('error', onVideoError);
 
-            // Load stream (unchanged)
+            // Load stream
             try {
-                await player.load(channel.streamUrl);
-                console.log('Manifest loaded!');
+                await player.load(channel.streamUrl); console.log('Manifest loaded!');
                 video.play().catch(e => console.warn("Autoplay prevented:", e.message));
-                setTimeout(showAlert, 3000);
+                setTimeout(showAlert, 3000); // Show alert after load attempt
             } catch (loadError) { onError(loadError); }
         }
 
-        // --- Error handling functions (unchanged) ---
+        // --- Error handling functions ---
         function onErrorEvent(event) { onError(event.detail); }
         function onError(error) { console.error('Shaka Error:', error.code, error.message, error.data); let msg = `Error ${error.code}: ${error.message}`; switch (error.code) { case shaka.util.Error.Code.LOAD_TIMEOUT: msg = "Connection timed out."; break; case shaka.util.Error.Code.NETWORK_ERROR: msg = "Network error."; break; case shaka.util.Error.Code.HTTP_ERROR: msg = `HTTP error: ${error.data[1]}`; break; case shaka.util.Error.Code.BAD_HTTP_STATUS: msg = `Failed load (Status: ${error.data[1]}). Offline/Access Denied.`; if (error.data[1] === 403) msg += " (Forbidden - Domain restriction?)"; break; case shaka.util.Error.Code.LICENSE_REQUEST_FAILED: case shaka.util.Error.Code.LICENSE_RESPONSE_REJECTED: msg = "DRM license issue."; break; case shaka.util.Error.Code.MANIFEST_PARSE_ERROR: msg = "Stream info parse error."; break; case shaka.util.Error.Code.STREAMING_CODEC_NOT_SUPPORTED: msg = "Video format not supported."; break; } showError(msg); }
         function onVideoError(event) { const ve = video.error; if (ve && !player.isLive()) { let msg = `Video error ${ve.code}.`; switch (ve.code) { case MediaError.MEDIA_ERR_DECODE: msg += " Decode error."; break; case MediaError.MEDIA_ERR_NETWORK: msg += " Network interrupted."; break; case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: msg += " Format not supported."; break; } showError(msg); } }
         function onBuffering() { if (!video.seeking && errorMessage.style.display !== 'block') showLoading('Buffering...'); }
         function onPlaying() { hideLoading(); showChannelInfo(channelLogo.src, channelName.textContent); }
 
-        // --- Main function (unchanged) ---
+        // --- Main function ---
         async function main() {
             const channelId = getChannelIdFromUrl(); if (!channelId) { showError('No channel ID in URL.'); return; }
             const channelData = await fetchChannelData(channelId);
