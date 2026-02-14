@@ -6,34 +6,114 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        /* Base styles */
         html, body { margin: 0; padding: 0; background: #000; height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', sans-serif; color: #E5E7EB; position: relative; }
         [data-shaka-player-container] { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 1; }
         video { width: 100%; height: 100%; object-fit: contain; background: #000; display: block; }
         .shaka-spinner-container { display: none !important; }
-
-        /* UI FIX: Force Hide central button */
+        /* UI FIX: Hide central button */
         [data-shaka-player-container].shaka-playing > .shaka-controls-container > .shaka-play-button-container,
         [data-shaka-player-container][data-shaka-player-state="playing"] > .shaka-controls-container > .shaka-play-button-container,
         [data-shaka-player-container][data-shaka-player-state="buffering"] > .shaka-controls-container > .shaka-play-button-container {
             display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important;
         }
-
-        /* Channel Info Overlay */
         .channel-info { position: absolute; top: 0; left: 0; right: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%); padding: 0.5rem 0.75rem; display: flex; align-items: center; z-index: 10; transition: opacity 0.3s ease; pointer-events: none; }
         .channel-info.hidden { opacity: 0; }
         .channel-logo { width: 32px; height: 32px; margin-right: 0.75rem; border-radius: 0.25rem; object-fit: contain; background: #374151; }
         .channel-name { font-size: 1rem; font-weight: 500; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        /* Loading Indicator */
         .loading-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; text-align: center; }
         .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top: 4px solid #3B82F6; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 0.75rem auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Alert Box Overlay */
         .alert-overlay-base { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 50; opacity: 0; visibility: hidden; display: flex; align-items: center; justify-content: center; transition: 0.3s ease; }
         .alert-overlay-base.visible { opacity: 1; visibility: visible; }
-        .alert-box { background: #1F2937; padding: 1.5rem; border-radius: 0.75rem; text-align: center; color: #E5E7EB; width: 90%; max-width: 350px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); }
+        .alert-box { background: #1F2937; padding: 1.5rem; border-radius: 0.75rem; text-align: center; color: #E5E7EB; width: 90%; max-width: 350px; }
         .join-btn { background: #3B82F6; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; margin: 0.5rem; font-weight: 600; cursor: pointer; }
-        .close-btn { background: #10B981; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; margin: 0.5rem;
+        .close-btn { background: #10B981; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; margin: 0.5rem; font-weight: 600; cursor: pointer; }
+        .shaka-controls-container .shaka-volume-bar-container { --volume-percent: 80%; background: linear-gradient(to right, rgb(229, 231, 235) var(--volume-percent), rgb(59, 130, 246) var(--volume-percent)); }
+    </style>
+</head><body>
+    <div class="channel-info hidden" id="channelInfo">
+        <img class="channel-logo" id="channelLogo" src="" alt="Logo" onerror="this.style.display='none'">
+        <div class="channel-name" id="channelName">Loading...</div>
+    </div>
+    <div data-shaka-player-container>
+        <video autoplay playsinline id="video"></video>
+    </div>
+    <div class="loading-indicator" id="loadingIndicator">
+        <div class="spinner"></div>
+        <p id="loadingText">Initializing Player...</p>
+    </div>
+    <div id="alertOverlay" class="alert-overlay-base">
+        <div class="alert-box">
+            <p style="margin-bottom:1rem;">Join our Channel for More Content & Support!</p>
+            <button class="join-btn" onclick="window.open('https://t.me/cricketmemesverse873', '_blank')">Join Channel</button>
+            <button class="close-btn" onclick="closeAlert()">Close</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.ui.min.js" crossorigin="anonymous"></script>
+    <script>
+        const video = document.getElementById('video');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const channelInfo = document.getElementById('channelInfo');
+        const alertOverlay = document.getElementById('alertOverlay');
+        let player = null;
+
+        function getChannelIdFromUrl() { return new URLSearchParams(window.location.search).get('id'); }
+        function showAlert() { alertOverlay.classList.add('visible'); }
+        function closeAlert() { alertOverlay.classList.remove('visible'); }
+
+        async function fetchChannelData(channelId) {
+            const m3uUrl = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/nexgen.m3u";
+            try {
+                const response = await fetch(m3uUrl);
+                const text = await response.text();
+                const lines = text.split('\n');
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].includes(`tvg-id="${channelId}"`) || lines[i].includes(decodeURIComponent(channelId))) {
+                        const nameMatch = lines[i].match(/,(.+)$/);
+                        const logoMatch = lines[i].match(/tvg-logo="([^"]+)"/);
+                        return {
+                            name: nameMatch ? nameMatch[1].trim() : 'Channel',
+                            logo: logoMatch ? logoMatch[1] : '',
+                            url: lines[i+1].trim()
+                        };
+                    }
+                }
+            } catch (e) { return null; }
+        }
+
+        async function initPlayer(channel) {
+            shaka.polyfill.installAll();
+            player = new shaka.Player(video);
+            const uiContainer = video.parentElement;
+            const ui = new shaka.ui.Overlay(player, uiContainer, video);
+            ui.configure({ 'fadeDelaySeconds': 3.5, 'controlPanelElements': ['play_pause', 'time_and_duration', 'mute', 'volume', 'spacer', 'quality', 'fullscreen'] });
+
+            // CLEAN HEADERS - No Jio references
+            player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                request.headers['User-Agent'] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+            });
+
+            try {
+                // Mandatory Proxy for Nexgen streams to bypass CORS
+                const proxyUrl = "https://cors-proxy.cooks.fyi/" + channel.url; 
+                await player.load(proxyUrl, null, 'application/x-mpegurl'); 
+                
+                loadingIndicator.style.display = 'none';
+                document.getElementById('channelName').textContent = channel.name;
+                document.getElementById('channelLogo').src = channel.logo;
+                channelInfo.classList.remove('hidden');
+                setTimeout(showAlert, 3000);
+            } catch (e) {
+                document.getElementById('loadingText').textContent = "Stream Error: Try another channel.";
+            }
+        }
+
+        async function main() {
+            const id = getChannelIdFromUrl();
+            const data = await fetchChannelData(id);
+            if (data) initPlayer(data);
+        }
+        document.addEventListener('DOMContentLoaded', main);
+    </script></body></html>
 
