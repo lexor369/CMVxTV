@@ -1,5 +1,4 @@
-<!DOCTYPE html><html lang="en"><head> <meta charset="UTF-8"> <title>CMV LIVE - Watch Live</title> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <script src="https://cdn.tailwindcss.com"></script> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"> <style>
-        body { background-color: #111827; color: #E5E7EB; font-family: 'Inter', sans-serif; }
+<!DOCTYPE html><html lang="en"><head> <meta charset="UTF-8"> <title>CMV LIVE - Watch Live</title> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <script src="https://cdn.tailwindcss.com"></script> <link rel="preconnect" href="https://fonts.googleapis.com"> <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"> <style> body { background-color: #111827; color: #E5E7EB; font-family: 'Inter', sans-serif; }
         .card { background-color: #1F2937; border: 1px solid #3B82F6; border-radius: 0.75rem; padding: 1rem; text-align: center; transition: all 0.2s ease-in-out; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); cursor: pointer; }
         .card:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); border-color: #60A5FA; }
         .logo { width: 80px; height: 60px; margin: 0 auto 0.5rem auto; object-fit: contain; border-radius: 0.375rem; background-color: #374151; }
@@ -24,7 +23,6 @@
     </main>
     <script>
         async function loadM3U() {
-            // Updated to Nexgen M3U URL
             const url = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/nexgen.m3u";
             try {
                 const response = await fetch(url);
@@ -33,7 +31,6 @@
                 const lines = text.split("\n");
                 let channels = [];
                 let current = {};
-
                 lines.forEach(line => {
                     line = line.trim();
                     if (line.startsWith("#EXTINF")) {
@@ -57,7 +54,6 @@
                 return [];
             }
         }
-
         function renderChannels(channels) {
             const grid = document.getElementById("channelGrid");
             grid.innerHTML = "";
@@ -70,7 +66,6 @@
                 grid.appendChild(div);
             });
         }
-
         let allChannels = [];
         async function initApp() { allChannels = await loadM3U(); renderChannels(allChannels); }
         function filterChannels() {
@@ -81,7 +76,4 @@
         document.getElementById("searchBox").addEventListener("keypress", (e) => { if (e.key === "Enter") filterChannels(); });
         document.addEventListener("DOMContentLoaded", initApp);
     </script></body></html>
-
-
-
 
