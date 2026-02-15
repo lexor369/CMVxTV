@@ -6,15 +6,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        [span_2](start_span)/* ALL ORIGINAL STYLES REMAIN [cite: 1-54] */
         html, body { margin: 0; padding: 0; background: #000; height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', sans-serif; color: #E5E7EB; position: relative; }
         [data-shaka-player-container] { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 1; }
-        video { width: 100%; height: 100%; object-fit: contain; background: #000; display: block; }
+        video { width: 100%; height: 100%; object-fit: contain; display: block; }
         .shaka-spinner-container { display: none !important; }
-        /* UI FIX: Hide central button */
+        [cite_start]/* UI FIX: Hide central button[span_2](end_span) */
         [data-shaka-player-container].shaka-playing > .shaka-controls-container > .shaka-play-button-container,
-        [data-shaka-player-container][data-shaka-player-state="playing"] > .shaka-controls-container > .shaka-play-button-container,
-        [data-shaka-player-container][data-shaka-player-state="buffering"] > .shaka-controls-container > .shaka-play-button-container {
-            display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important;
+        [data-shaka-player-container][data-shaka-player-state="playing"] > .shaka-controls-container > .shaka-play-button-container {
+            display: none !important; visibility: hidden !important;
         }
         .channel-info { position: absolute; top: 0; left: 0; right: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%); padding: 0.5rem 0.75rem; display: flex; align-items: center; z-index: 10; transition: opacity 0.3s ease; pointer-events: none; }
         .channel-info.hidden { opacity: 0; }
@@ -28,7 +28,7 @@
         .alert-box { background: #1F2937; padding: 1.5rem; border-radius: 0.75rem; text-align: center; color: #E5E7EB; width: 90%; max-width: 350px; }
         .join-btn { background: #3B82F6; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; margin: 0.5rem; font-weight: 600; cursor: pointer; }
         .close-btn { background: #10B981; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; margin: 0.5rem; font-weight: 600; cursor: pointer; }
-        .shaka-controls-container .shaka-volume-bar-container { --volume-percent: 80%; background: linear-gradient(to right, rgb(229, 231, 235) var(--volume-percent), rgb(59, 130, 246) var(--volume-percent)); }
+        .shaka-controls-container .shaka-volume-bar-container { --volume-percent: 80%; background: linear-gradient(to right, #e5e7eb var(--volume-percent), #3b82f6 var(--volume-percent)); }
     </style>
 </head><body>
     <div class="channel-info hidden" id="channelInfo">
@@ -40,7 +40,7 @@
     </div>
     <div class="loading-indicator" id="loadingIndicator">
         <div class="spinner"></div>
-        <p id="loadingText">Initializing Player...</p>
+        <p id="loadingText">Initializing JioTV Player...</p>
     </div>
     <div id="alertOverlay" class="alert-overlay-base">
         <div class="alert-box">
@@ -63,7 +63,7 @@
         function closeAlert() { alertOverlay.classList.remove('visible'); }
 
         async function fetchChannelData(channelId) {
-            const m3uUrl = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/nexgen.m3u";
+            const m3uUrl = "https://jiotvplaylist.teachub.workers.dev/?t=ads_ouo_10";
             try {
                 const response = await fetch(m3uUrl);
                 const text = await response.text();
@@ -89,13 +89,14 @@
             const ui = new shaka.ui.Overlay(player, uiContainer, video);
             ui.configure({ 'fadeDelaySeconds': 3.5, 'controlPanelElements': ['play_pause', 'time_and_duration', 'mute', 'volume', 'spacer', 'quality', 'fullscreen'] });
 
-            // CLEAN HEADERS - No Jio references
+            [span_3](start_span)// JIO HEADERS REQUIRED FOR TEACHUB WORKER[span_3](end_span)
             player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                request.headers['User-Agent'] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+                request.headers['Referer'] = 'https://www.jiotv.com/'; 
+                request.headers['User-Agent'] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
             });
 
             try {
-                // Mandatory Proxy for Nexgen streams to bypass CORS
+                // Use a proxy to bypass browser CORS blocks
                 const proxyUrl = "https://cors-proxy.cooks.fyi/" + channel.url; 
                 await player.load(proxyUrl, null, 'application/x-mpegurl'); 
                 
@@ -105,7 +106,7 @@
                 channelInfo.classList.remove('hidden');
                 setTimeout(showAlert, 3000);
             } catch (e) {
-                document.getElementById('loadingText').textContent = "Stream Error: Try another channel.";
+                document.getElementById('loadingText').textContent = "JioTV Link Expired or Blocked.";
             }
         }
 
