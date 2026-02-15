@@ -1,153 +1,142 @@
 <!DOCTYPE html><html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CMV LIVE Player</title>
+    <title>CMV LIVE - Pro Player</title>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css" crossorigin="anonymous">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        [cite_start]/* Base styles [cite: 1-7] */
-        html, body { margin: 0; padding: 0; box-sizing: border-box; background: #000; height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', sans-serif; color: #E5E7EB; position: relative; }
-        [data-shaka-player-container] { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 1; }
-        video { width: 100%; height: 100%; display: block; object-fit: contain; background: #000; }
-        
-        [cite_start]/* Hide Shaka's built-in spinner[span_2](end_span) */
-        .shaka-spinner-container { display: none !important; }
 
-        [span_3](start_span)/* UI FIX: Force Hide the large central button [cite: 10-14] */
-        [data-shaka-player-container].shaka-playing > .shaka-controls-container > .shaka-play-button-container,
-        [data-shaka-player-container][data-shaka-player-state="playing"] > .shaka-controls-container > .shaka-play-button-container,
-        [data-shaka-player-container][data-shaka-player-state="buffering"] > .shaka-controls-container > .shaka-play-button-container {
-            display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; z-index: -1 !important;
+    <style>
+        /* Core Layout */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { background: #000; height: 100vh; width: 100vw; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
+        [data-shaka-player-container] { position: absolute; inset: 0; background: #000; z-index: 1; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+
+        /* PRO UI: Kill Default Shaka Spinners */
+        .shaka-spinner-container, .shaka-spinner, .shaka-buffering-spinner {
+            display: none !important; opacity: 0 !important; visibility: hidden !important;
         }
 
-        [cite_start]/* Channel info overlay [cite: 15-21] */
-        .channel-info { position: absolute; top: 0; left: 0; right: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%); padding: 0.5rem 0.75rem; display: flex; align-items: center; z-index: 10; transition: opacity 0.3s ease; pointer-events: none; }
-        .channel-info.hidden { opacity: 0; }
-        .channel-logo { width: 32px; height: 32px; margin-right: 0.75rem; border-radius: 0.25rem; background: #374151; object-fit: contain; }
-        .channel-name { font-size: 1rem; font-weight: 500; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Top Channel Info Overlay */
+        .channel-info {
+            position: absolute; top: 0; left: 0; right: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
+            padding: 1rem; display: flex; align-items: center; z-index: 10; transition: opacity 0.3s ease;
+        }
+        .channel-logo { width: 40px; height: 40px; margin-right: 15px; border-radius: 8px; background: #222; object-fit: contain; }
+        .channel-name { font-size: 1.1rem; font-weight: 500; color: white; }
 
-        [cite_start]/* Loading indicator [cite: 22-27] */
-        .loading-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; text-align: center; }
-        .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-radius: 50%; border-top: 4px solid #3B82F6; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 0.75rem auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* SportsEera Style Blurred Alert */
+        .blur-bg { position: fixed; inset: 0; backdrop-filter: blur(4px); background: rgba(0, 0, 0, 0.5); display: none; z-index: 50; }
+        .alert-box { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 12px; text-align: center; color: black; width: 320px; z-index: 100; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .alert-box p { font-size: 1.1rem; margin-bottom: 20px; font-weight: 500; }
+        .alert-box button { margin: 5px; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.2s; }
+        .join-btn { background: #3498db; color: white; }
+        .close-btn { background: #2ecc71; color: white; }
 
-        [cite_start]/* Alert overlay (Backdrop) [cite: 35-39] */
-        .alert-overlay-base { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 50; opacity: 0; visibility: hidden; display: flex; align-items: center; justify-content: center; transition: 0.3s ease; }
-        .alert-overlay-base.visible { opacity: 1; visibility: visible; }
-        
-        [cite_start]/* Alert Box [cite: 40-48] */
-        .alert-box { background: #1F2937; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); text-align: center; color: #E5E7EB; width: 90%; max-width: 350px; z-index: 51; }
-        .join-btn { background: #3B82F6; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; margin: 0.5rem; cursor: pointer; font-weight: 600; transition: background 0.2s; }
-        .join-btn:hover { background: #2563EB; }
-        .close-btn { background: #10B981; color: white; padding: 0.625rem 1.25rem; border-radius: 0.5rem; margin: 0.5rem; cursor: pointer; font-weight: 600; transition: background 0.2s; }
-        .close-btn:hover { background: #059669; }
-
-        [cite_start]/* Shaka UI Volume Bar [cite: 49-54] */
-        .shaka-controls-container .shaka-volume-bar-container { --volume-percent: 80%; background: linear-gradient(to right, rgb(229, 231, 235) var(--volume-percent), rgb(59, 130, 246) var(--volume-percent)); }
+        /* Custom Volume & Seek Bar Styling */
+        .shaka-controls-container .shaka-volume-bar-container { background: rgba(255,255,255,0.3); }
+        .shaka-seek-bar-container { background: rgba(255,255,255,0.2); }
     </style>
-</head><body>
-    <div class="channel-info hidden" id="channelInfo">
-        <img class="channel-logo" id="channelLogo" src="" alt="Logo" onerror="this.style.display='none'">
-        <div class="channel-name" id="channelName">Loading...</div>
+</head>
+<body>
+
+    <div class="channel-info" id="channelInfo">
+        <img class="channel-logo" id="channelLogo" src="" alt="" onerror="this.style.display='none'">
+        <div class="channel-name" id="channelName">Connecting...</div>
     </div>
 
-    <div data-shaka-player-container>
+    <div data-shaka-player-container class="shaka-video-container">
         <video autoplay playsinline id="video"></video>
     </div>
 
-    <div class="loading-indicator" id="loadingIndicator">
-        <div class="spinner"></div>
-        <p id="loadingText">Connecting to JioTV Server...</p>
+    <div id="loadingIndicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; color: white; text-align: center;">
+        <div style="border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #3B82F6; width: 45px; height: 45px; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 10px;"></div>
+        <p style="font-size: 0.9rem; opacity: 0.8;">Authorizing Stream...</p>
     </div>
 
-    <div id="alertOverlay" class="alert-overlay-base">
-        <div class="alert-box">
-            <p style="margin-bottom: 1rem;">Join our Channel for More Content & Support!</p>
-            <button class="join-btn" onclick="window.open('https://t.me/cricketmemesverse873', '_blank')">Join Channel</button>
-            <button class="close-btn" onclick="closeAlert()">Close</button>
-        </div>
+    <div id="blur-bg" class="blur-bg"></div> 
+    <div id="alert-box" class="alert-box">
+        <p>Join Our Channel for More Match Links Or Support!</p>
+        <button class="join-btn" onclick="window.open('https://t.me/+Jt-5CtcdaQY5MmU9', '_blank')">Join Channel</button>
+        <button class="close-btn" onclick="closeAlert()">Already Joined</button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/mux.js@6.0.1/dist/mux.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.ui.min.js" crossorigin="anonymous"></script>
+
     <script>
         const video = document.getElementById('video');
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        const channelInfo = document.getElementById('channelInfo');
-        const alertOverlay = document.getElementById('alertOverlay');
-        let player = null;
-        let ui = null;
+        const alertBox = document.getElementById('alert-box');
+        const blurBg = document.getElementById('blur-bg');
+        const loader = document.getElementById('loadingIndicator');
 
-        function getChannelIdFromUrl() { return new URLSearchParams(window.location.search).get('id'); }
-        function showAlert() { alertOverlay.classList.add('visible'); }
-        function closeAlert() { alertOverlay.classList.remove('visible'); }
+        function closeAlert() { alertBox.style.display = 'none'; blurBg.style.display = 'none'; }
+        function getChannelId() { return new URLSearchParams(window.location.search).get('id'); }
 
-        async function fetchChannelData(channelId) {
-            // New Teachub Worker URL
-            const m3uUrl = "https://jiotvplaylist.teachub.workers.dev/?t=ads_ouo_10";
+        async function init() {
+            const id = getChannelId();
+            if(!id) return;
+
+            // Step 1: Fetch Dynamic Playlist from Teachub Worker
+            const dynamicUrl = "https://jiotvplaylist.teachub.workers.dev/?t=ads_ouo_10";
             try {
-                const response = await fetch(m3uUrl);
-                const text = await response.text();
+                const res = await fetch(dynamicUrl);
+                const text = await res.text();
                 const lines = text.split('\n');
+                let channelData = null;
+
                 for (let i = 0; i < lines.length; i++) {
-                    if (lines[i].includes(`tvg-id="${channelId}"`) || lines[i].includes(decodeURIComponent(channelId))) {
-                        const nameMatch = lines[i].match(/,(.+)$/);
-                        const logoMatch = lines[i].match(/tvg-logo="([^"]+)"/);
-                        return {
-                            name: nameMatch ? nameMatch[1].trim() : 'Channel',
-                            logo: logoMatch ? logoMatch[1] : '',
+                    if (lines[i].includes(`tvg-id="${id}"`) || lines[i].includes(decodeURIComponent(id))) {
+                        channelData = {
+                            name: lines[i].match(/,(.+)$/)[1].trim(),
+                            logo: lines[i].match(/tvg-logo="([^"]+)"/)[1],
                             url: lines[i+1].trim()
                         };
+                        break;
                     }
                 }
-            } catch (e) { return null; }
-        }
 
-        async function initPlayer(channel) {
-            shaka.polyfill.installAll();
-            player = new shaka.Player(video);
-            const uiContainer = video.parentElement;
-            
-            ui = new shaka.ui.Overlay(player, uiContainer, video);
-            ui.configure({ 
-                [cite_start]'fadeDelaySeconds': 3.5, // Auto-hide controls[span_3](end_span)
-                'controlPanelElements': ['play_pause', 'time_and_duration', 'mute', 'volume', 'spacer', 'quality', 'fullscreen'] 
-            });
+                if (!channelData) throw new Error("Channel not found");
 
-            [span_4](start_span)// Set Headers for JioTV Worker[span_4](end_span)
-            player.getNetworkingEngine().registerRequestFilter((type, request) => {
-                request.headers['Referer'] = 'https://www.jiotv.com/'; 
-                request.headers['User-Agent'] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
-            });
-
-            try {
-                // Forcing HLS manifest interpretation
-                await player.load(channel.url, null, 'application/x-mpegurl'); 
+                // Step 2: Initialize Shaka Player
+                shaka.polyfill.installAll();
+                const player = new shaka.Player(video);
+                const ui = new shaka.ui.Overlay(player, video.parentElement, video);
                 
-                loadingIndicator.style.display = 'none';
-                document.getElementById('channelName').textContent = channel.name;
-                document.getElementById('channelLogo').src = channel.logo;
-                channelInfo.classList.remove('hidden');
+                ui.configure({
+                    'controlPanelElements': ['play_pause', 'time_and_duration', 'spacer', 'mute', 'volume', 'quality', 'fullscreen']
+                });
+
+                // Step 3: Register Mandatory Headers for the Worker
+                player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                    request.headers['Referer'] = 'https://www.jiotv.com/';
+                    request.headers['User-Agent'] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
+                });
+
+                // Step 4: Load Stream with Forced HLS Type
+                await player.load(channelData.url, null, 'application/x-mpegurl');
                 
-                [span_5](start_span)// Show popup after 3s[span_5](end_span)
-                setTimeout(showAlert, 3000); 
+                // Success - Hide Loader and Update UI
+                loader.style.display = 'none';
+                document.getElementById('channelName').textContent = channelData.name;
+                document.getElementById('channelLogo').src = channelData.logo;
+                
+                // Show Popup Alert after 6 seconds
+                setTimeout(() => {
+                    alertBox.style.display = 'block';
+                    blurBg.style.display = 'block';
+                }, 6000);
+
             } catch (e) {
-                console.error("Playback error:", e);
-                document.getElementById('loadingText').textContent = "Stream Blocked or Expired.";
+                console.error(e);
+                document.getElementById('loadingText').textContent = "Stream Error: Try again later.";
             }
         }
 
-        async function main() {
-            const id = getChannelIdFromUrl();
-            if (!id) return;
-            const data = await fetchChannelData(id);
-            if (data) initPlayer(data);
-        }
-
-        document.addEventListener('DOMContentLoaded', main);
-    </script></body></html>
-
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+    <style> @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } </style>
+</body></html>
 
