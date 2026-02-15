@@ -2,58 +2,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CMV LIVE - Pro Player</title>
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css" crossorigin="anonymous">
     <script src="https://cdn.tailwindcss.com"></script>
-
     <style>
-        /* Core Layout */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { background: #000; height: 100vh; width: 100vw; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
+        html, body { background: #000; height: 100vh; width: 100vw; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; color: white; }
         [data-shaka-player-container] { position: absolute; inset: 0; background: #000; z-index: 1; }
         video { width: 100%; height: 100%; object-fit: contain; }
+        .shaka-spinner-container { display: none !important; }
 
-        /* PRO UI: Kill Default Shaka Spinners */
-        .shaka-spinner-container, .shaka-spinner, .shaka-buffering-spinner {
-            display: none !important; opacity: 0 !important; visibility: hidden !important;
-        }
-
-        /* Top Channel Info Overlay */
-        .channel-info {
-            position: absolute; top: 0; left: 0; right: 0;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
-            padding: 1rem; display: flex; align-items: center; z-index: 10; transition: opacity 0.3s ease;
-        }
+        /* UI Styling */
+        .channel-info { position: absolute; top: 0; left: 0; right: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%); padding: 1rem; display: flex; align-items: center; z-index: 10; }
         .channel-logo { width: 40px; height: 40px; margin-right: 15px; border-radius: 8px; background: #222; object-fit: contain; }
-        .channel-name { font-size: 1.1rem; font-weight: 500; color: white; }
+        .channel-name { font-size: 1.1rem; font-weight: 500; }
 
-        /* SportsEera Style Blurred Alert */
+        /* Alert Box */
         .blur-bg { position: fixed; inset: 0; backdrop-filter: blur(4px); background: rgba(0, 0, 0, 0.5); display: none; z-index: 50; }
-        .alert-box { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 12px; text-align: center; color: black; width: 320px; z-index: 100; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        .alert-box p { font-size: 1.1rem; margin-bottom: 20px; font-weight: 500; }
-        .alert-box button { margin: 5px; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.2s; }
+        .alert-box { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 12px; text-align: center; color: black; width: 320px; z-index: 100; display: none; }
+        .alert-box button { margin: 5px; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .join-btn { background: #3498db; color: white; }
         .close-btn { background: #2ecc71; color: white; }
-
-        /* Custom Volume & Seek Bar Styling */
-        .shaka-controls-container .shaka-volume-bar-container { background: rgba(255,255,255,0.3); }
-        .shaka-seek-bar-container { background: rgba(255,255,255,0.2); }
+        
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <div class="channel-info" id="channelInfo">
-        <img class="channel-logo" id="channelLogo" src="" alt="" onerror="this.style.display='none'">
+        <img class="channel-logo" id="channelLogo" src="" alt="">
         <div class="channel-name" id="channelName">Connecting...</div>
     </div>
 
-    <div data-shaka-player-container class="shaka-video-container">
+    <div data-shaka-player-container>
         <video autoplay playsinline id="video"></video>
     </div>
 
-    <div id="loadingIndicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; color: white; text-align: center;">
+    <div id="loadingIndicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; text-align: center;">
         <div style="border: 4px solid rgba(255,255,255,0.1); border-top: 4px solid #3B82F6; width: 45px; height: 45px; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 10px;"></div>
-        <p style="font-size: 0.9rem; opacity: 0.8;">Authorizing Stream...</p>
+        <p id="statusMsg">Authorizing Stream...</p>
     </div>
 
     <div id="blur-bg" class="blur-bg"></div> 
@@ -70,7 +56,7 @@
         const video = document.getElementById('video');
         const alertBox = document.getElementById('alert-box');
         const blurBg = document.getElementById('blur-bg');
-        const loader = document.getElementById('loadingIndicator');
+        const statusMsg = document.getElementById('statusMsg');
 
         function closeAlert() { alertBox.style.display = 'none'; blurBg.style.display = 'none'; }
         function getChannelId() { return new URLSearchParams(window.location.search).get('id'); }
@@ -79,9 +65,9 @@
             const id = getChannelId();
             if(!id) return;
 
-            // Step 1: Fetch Dynamic Playlist from Teachub Worker
-            const dynamicUrl = "https://jiotvplaylist.teachub.workers.dev/?t=ads_ouo_10";
             try {
+                // 1. Fetch Playlist to establish session
+                const dynamicUrl = "https://jiotvplaylist.teachub.workers.dev/?t=ads_ouo_10";
                 const res = await fetch(dynamicUrl);
                 const text = await res.text();
                 const lines = text.split('\n');
@@ -98,45 +84,46 @@
                     }
                 }
 
-                if (!channelData) throw new Error("Channel not found");
+                if (!channelData) {
+                    statusMsg.textContent = "Channel Not Found In Playlist";
+                    return;
+                }
 
-                // Step 2: Initialize Shaka Player
+                // 2. Setup Shaka
                 shaka.polyfill.installAll();
                 const player = new shaka.Player(video);
                 const ui = new shaka.ui.Overlay(player, video.parentElement, video);
                 
-                ui.configure({
-                    'controlPanelElements': ['play_pause', 'time_and_duration', 'spacer', 'mute', 'volume', 'quality', 'fullscreen']
-                });
-
-                // Step 3: Register Mandatory Headers for the Worker
+                // 3. Mandatory Headers & Proxy Bypass
                 player.getNetworkingEngine().registerRequestFilter((type, request) => {
                     request.headers['Referer'] = 'https://www.jiotv.com/';
                     request.headers['User-Agent'] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
+                    
+                    // Add Proxy to segment requests if they are blocked
+                    if (type === shaka.net.NetworkingEngine.RequestType.SEGMENT) {
+                        request.uris[0] = "https://cors-proxy.cooks.fyi/" + request.uris[0];
+                    }
                 });
 
-                // Step 4: Load Stream with Forced HLS Type
-                await player.load(channelData.url, null, 'application/x-mpegurl');
+                // 4. Load using Proxy for Manifest
+                statusMsg.textContent = "Loading Segments...";
+                const finalUrl = "https://cors-proxy.cooks.fyi/" + channelData.url;
                 
-                // Success - Hide Loader and Update UI
-                loader.style.display = 'none';
+                await player.load(finalUrl, null, 'application/x-mpegurl');
+                
+                document.getElementById('loadingIndicator').style.display = 'none';
                 document.getElementById('channelName').textContent = channelData.name;
                 document.getElementById('channelLogo').src = channelData.logo;
-                
-                // Show Popup Alert after 6 seconds
-                setTimeout(() => {
-                    alertBox.style.display = 'block';
-                    blurBg.style.display = 'block';
-                }, 6000);
+
+                setTimeout(() => { alertBox.style.display = 'block'; blurBg.style.display = 'block'; }, 6000);
 
             } catch (e) {
                 console.error(e);
-                document.getElementById('loadingText').textContent = "Stream Error: Try again later.";
+                statusMsg.textContent = "Stream Blocked. Try Refreshing.";
             }
         }
 
         document.addEventListener('DOMContentLoaded', init);
     </script>
-    <style> @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } } </style>
 </body></html>
 
