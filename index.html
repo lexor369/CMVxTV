@@ -11,19 +11,20 @@
     </style></head><body>
     <header class="p-4 md:p-6 flex items-center justify-center flex-col border-b border-blue-600 shadow-md">
         <h1 class="text-3xl md:text-4xl font-bold text-blue-500 mb-4">CMV LIVE</h1>
-        <div class="flex w-full max-w-lg">
-            <input id="searchBox" type="text" placeholder="Search channels..." class="search-bar flex-1">
+        <div class="flex w-full max-lg">
+            <input id="searchBox" type="text" placeholder="Search JioTV channels..." class="search-bar flex-1">
             <button class="search-btn" onclick="filterChannels()">Search</button>
         </div>
     </header>
     <main class="p-4 md:p-6">
         <div id="channelGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            <div class="text-center col-span-full py-10">Loading channels...</div>
+            <div class="text-center col-span-full py-10">Loading JioTV Playlist...</div>
         </div>
     </main>
     <script>
         async function loadM3U() {
-            const url = "https://raw.githubusercontent.com/tvbd/m3uplayer/refs/heads/main/m3u/nexgen.m3u";
+            // Updated to the JioTV Playlist Worker URL
+            const url = "https://jiotvplaylist.teachub.workers.dev/?t=ads_ouo_10";
             try {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -49,8 +50,8 @@
                 });
                 return channels.filter(ch => ch.id);
             } catch (error) {
-                console.error("Failed to load M3U:", error);
-                document.getElementById("channelGrid").innerHTML = '<div class="text-center col-span-full py-10 text-red-500">Failed to load channels.</div>';
+                console.error("Failed to load JioTV Playlist:", error);
+                document.getElementById("channelGrid").innerHTML = '<div class="text-center col-span-full py-10 text-red-500">Failed to load.</div>';
                 return [];
             }
         }
