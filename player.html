@@ -1,73 +1,68 @@
-<script src="https://cdn.jsdelivr.net/npm/mux.js@6.0.1/dist/mux.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.ui.min.js" crossorigin="anonymous"></script>
-
-<script>
-    [span_1](start_span)// RESTORING ALL YOUR ORIGINAL VARIABLES [cite: 56-58]
-    const video = document.getElementById('video');
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    const channelInfo = document.getElementById('channelInfo');
-    const alertOverlay = document.getElementById('alertOverlay');
-    let player = null;
-    let ui = null;
-
-    [cite_start]// RESTORING YOUR ALERT BOX FUNCTIONS[span_1](end_span)
-    function showAlert() { alertOverlay.classList.add('visible'); }
-    function closeAlert() { alertOverlay.classList.remove('visible'); }
-
-    // UPDATED FETCH: Now uses the new JSON worker link
-    async function fetchChannelData(channelId) {
-        const url = "https://pkll.xojiv79335.workers.dev/";
-        try {
-            const res = await fetch(url);
-            const data = await res.json();
-            // Finding channel in the new JSON structure
-            const ch = data.find(c => (c.id || c.channel_id) === channelId);
-            return ch ? { 
-                name: ch.name || ch.channel_name, 
-                logo: ch.logo || ch.channel_logo, 
-                url: ch.url || ch.stream_url 
-            } : null;
-        } catch (e) { return null; }
-    }
-
-    async function initPlayer(channel) {
-        [span_2](start_span)shaka.polyfill.installAll();[span_2](end_span)
-        [span_3](start_span)player = new shaka.Player(video);[span_3](end_span)
-        [span_4](start_span)ui = new shaka.ui.Overlay(player, video.parentElement, video);[span_4](end_span)
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMV LIVE Player</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css" crossorigin="anonymous">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* ALL ORIGINAL PLAYER STYLES RESTORED */
+        html, body { margin: 0; background: #000; height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', sans-serif; position: relative; }
+        [data-shaka-player-container] { position: absolute; inset: 0; background: #000; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+        /* UI FIX: Hide central button */
+        .shaka-spinner-container { display: none !important; }
+        [data-shaka-player-container].shaka-playing > .shaka-controls-container > .shaka-play-button-container { display: none !important; }
         
-        [span_5](start_span)// RESTORING YOUR ORIGINAL UI CONFIG [cite: 84-85]
-        ui.configure({ 
-            'controlPanelElements': ['play_pause', 'time_and_duration', 'mute', 'volume', 'spacer', 'quality', 'fullscreen'],
-            'fadeDelaySeconds': 3.5 
-        });
+        /* Telegram Alert Box */
+        .alert-overlay-base { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 50; display: none; align-items: center; justify-content: center; }
+        .alert-overlay-base.visible { display: flex; }
+        .alert-box { background: #1F2937; padding: 1.5rem; border-radius: 0.75rem; text-align: center; color: #E5E7EB; width: 300px; }
+        .join-btn { background: #3B82F6; color: white; padding: 0.6rem; border-radius: 0.5rem; margin-top: 1rem; width: 100%; cursor: pointer; }
 
-        [cite_start]// HEADERS FOR AUTHORIZATION[span_5](end_span)
-        player.getNetworkingEngine().registerRequestFilter((type, request) => {
-            request.headers['Referer'] = 'https://www.jiotv.com/';
-            request.headers['User-Agent'] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
-        });
+        /* Channel Info Overlay */
+        .channel-info { position: absolute; top: 0; left: 0; right: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%); padding: 1rem; display: flex; align-items: center; z-index: 10; color: white; }
+    </style>
+</head><body>
+    <div class="channel-info" id="channelInfo">
+        <img id="channelLogo" src="" style="width:32px; height:32px; margin-right:10px;">
+        <div id="channelName">Loading...</div>
+    </div>
+    <div data-shaka-player-container><video autoplay id="video"></video></div>
+    <div id="alertOverlay" class="alert-overlay-base">
+        <div class="alert-box">
+            <p>Join our Telegram for more matches!</p>
+            <button class="join-btn" onclick="window.open('https://t.me/cricketmemesverse873', '_blank')">Join Now</button>
+            <button onclick="document.getElementById('alertOverlay').classList.remove('visible')" style="margin-top:10px; cursor:pointer;">Close</button>
+        </div>
+    </div>
 
-        try {
-            // Loading with forced HLS type to prevent "initializing" hang
-            [span_6](start_span)await player.load(channel.url, null, 'application/x-mpegurl');[span_6](end_span)
-            
-            [span_7](start_span)loadingIndicator.style.display = 'none';[span_7](end_span)
-            [span_8](start_span)document.getElementById('channelName').textContent = channel.name;[span_8](end_span)
-            [span_9](start_span)document.getElementById('channelLogo').src = channel.logo;[span_9](end_span)
-            [span_10](start_span)channelInfo.classList.remove('hidden');[span_10](end_span)
-            
-            [span_11](start_span)// RESTORING YOUR 3-SECOND POPUP TIMER[span_11](end_span)
-            setTimeout(showAlert, 3000); 
-        } catch (e) {
-            console.error(e);
+    <script src="https://cdn.jsdelivr.net/npm/mux.js@6.0.1/dist/mux.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.ui.min.js" crossorigin="anonymous"></script>
+    <script>
+        async function init() {
+            const id = new URLSearchParams(window.location.search).get('id');
+            const res = await fetch("https://pkll.xojiv79335.workers.dev/");
+            const data = await res.json();
+            const ch = data.find(c => (c.id || c.channel_id) == id);
+
+            if (ch) {
+                shaka.polyfill.installAll();
+                const player = new shaka.Player(document.getElementById('video'));
+                new shaka.ui.Overlay(player, document.querySelector('[data-shaka-player-container]'), document.getElementById('video'));
+                
+                player.getNetworkingEngine().registerRequestFilter((type, request) => {
+                    request.headers['Referer'] = 'https://www.jiotv.com/';
+                    request.headers['User-Agent'] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
+                });
+
+                await player.load(ch.url || ch.stream_url, null, 'application/x-mpegurl');
+                document.getElementById('channelName').textContent = ch.name || ch.channel_name;
+                document.getElementById('channelLogo').src = ch.logo || ch.channel_logo;
+                // Original Popup Delay
+                setTimeout(() => document.getElementById('alertOverlay').classList.add('visible'), 3000);
+            }
         }
-    }
-
-    async function main() {
-        [span_12](start_span)const id = new URLSearchParams(window.location.search).get('id');[span_12](end_span)
-        const data = await fetchChannelData(id);
-        if (data) initPlayer(data);
-    }
-    document.addEventListener('DOMContentLoaded', main);
-</script>
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body></html>
 
