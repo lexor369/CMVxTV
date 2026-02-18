@@ -5,12 +5,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css" crossorigin="anonymous">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* ALL ORIGINAL PLAYER STYLES RESTORED */
+        /* RESTORED ALL ORIGINAL STYLES */
         html, body { margin: 0; background: #000; height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', sans-serif; position: relative; }
         [data-shaka-player-container] { position: absolute; inset: 0; background: #000; }
         video { width: 100%; height: 100%; object-fit: contain; }
-        /* UI FIX: Hide central button */
         .shaka-spinner-container { display: none !important; }
+        /* UI FIX: Hide central button */
         [data-shaka-player-container].shaka-playing > .shaka-controls-container > .shaka-play-button-container { display: none !important; }
         
         /* Telegram Alert Box */
@@ -19,20 +19,23 @@
         .alert-box { background: #1F2937; padding: 1.5rem; border-radius: 0.75rem; text-align: center; color: #E5E7EB; width: 300px; }
         .join-btn { background: #3B82F6; color: white; padding: 0.6rem; border-radius: 0.5rem; margin-top: 1rem; width: 100%; cursor: pointer; }
 
-        /* Channel Info Overlay */
-        .channel-info { position: absolute; top: 0; left: 0; right: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%); padding: 1rem; display: flex; align-items: center; z-index: 10; color: white; }
+        /* Top Overlay Info */
+        .channel-info { position: absolute; top: 0; left: 0; right: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%); padding: 1rem; display: flex; align-items: center; z-index: 10; color: white; transition: opacity 0.5s; }
+        .channel-info.hidden { opacity: 0; }
     </style>
 </head><body>
     <div class="channel-info" id="channelInfo">
-        <img id="channelLogo" src="" style="width:32px; height:32px; margin-right:10px;">
-        <div id="channelName">Loading...</div>
+        <img id="channelLogo" src="" style="width:32px; height:32px; margin-right:10px; border-radius:4px;">
+        <div id="channelName" style="font-weight:600;">Loading...</div>
     </div>
+    
     <div data-shaka-player-container><video autoplay id="video"></video></div>
+
     <div id="alertOverlay" class="alert-overlay-base">
         <div class="alert-box">
             <p>Join our Telegram for more matches!</p>
             <button class="join-btn" onclick="window.open('https://t.me/cricketmemesverse873', '_blank')">Join Now</button>
-            <button onclick="document.getElementById('alertOverlay').classList.remove('visible')" style="margin-top:10px; cursor:pointer;">Close</button>
+            <button onclick="document.getElementById('alertOverlay').classList.remove('visible')" style="margin-top:10px; cursor:pointer; font-size:0.8rem; opacity:0.7;">Close</button>
         </div>
     </div>
 
@@ -47,19 +50,29 @@
 
             if (ch) {
                 shaka.polyfill.installAll();
-                const player = new shaka.Player(document.getElementById('video'));
-                new shaka.ui.Overlay(player, document.querySelector('[data-shaka-player-container]'), document.getElementById('video'));
+                const video = document.getElementById('video');
+                const player = new shaka.Player(video);
+                const ui = new shaka.ui.Overlay(player, document.querySelector('[data-shaka-player-container]'), video);
                 
+                // RESTORED UI CONFIG
+                ui.configure({ 'controlPanelElements': ['play_pause', 'time_and_duration', 'spacer', 'mute', 'volume', 'quality', 'fullscreen'] });
+
                 player.getNetworkingEngine().registerRequestFilter((type, request) => {
                     request.headers['Referer'] = 'https://www.jiotv.com/';
                     request.headers['User-Agent'] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
                 });
 
-                await player.load(ch.url || ch.stream_url, null, 'application/x-mpegurl');
-                document.getElementById('channelName').textContent = ch.name || ch.channel_name;
-                document.getElementById('channelLogo').src = ch.logo || ch.channel_logo;
-                // Original Popup Delay
-                setTimeout(() => document.getElementById('alertOverlay').classList.add('visible'), 3000);
+                try {
+                    // FORCE HLS TYPE TO FIX BLACK SCREEN
+                    await player.load(ch.url || ch.stream_url, null, 'application/x-mpegurl');
+                    document.getElementById('channelName').textContent = ch.name || ch.channel_name;
+                    document.getElementById('channelLogo').src = ch.logo || ch.channel_logo;
+                    
+                    // Hide Info Overlay after 5s
+                    setTimeout(() => document.getElementById('channelInfo').classList.add('hidden'), 5000);
+                    // RESTORED POPUP DELAY
+                    setTimeout(() => document.getElementById('alertOverlay').classList.add('visible'), 3000);
+                } catch (e) { console.error("Playback failed", e); }
             }
         }
         document.addEventListener('DOMContentLoaded', init);
