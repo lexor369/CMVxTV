@@ -4,7 +4,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* RESTORED ORIGINAL STYLES */
         body { background-color: #111827; color: #E5E7EB; font-family: 'Inter', sans-serif; }
         .card { background-color: #1F2937; border: 1px solid #3B82F6; border-radius: 0.75rem; padding: 1rem; text-align: center; transition: all 0.2s ease-in-out; cursor: pointer; }
         .card:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
@@ -22,20 +21,16 @@
             <button class="search-btn" onclick="filterChannels()">Search</button>
         </div>
     </header>
-    <main class="p-4">
-        <div id="channelGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
-    </main>
+    <main class="p-4"><div id="channelGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div></main>
     <script>
         let allChannels = [];
         async function initApp() {
-            const res = await fetch("https://pkll.xojiv79335.workers.dev/");
-            const data = await res.json();
-            allChannels = data.map(ch => ({
-                id: ch.id || ch.channel_id,
-                name: ch.name || ch.channel_name,
-                logo: ch.logo || ch.channel_logo
-            }));
-            renderChannels(allChannels);
+            try {
+                const res = await fetch("https://pkll.xojiv79335.workers.dev/");
+                const data = await res.json();
+                allChannels = data.map(ch => ({ id: ch.id || ch.channel_id, name: ch.name || ch.channel_name, logo: ch.logo || ch.channel_logo }));
+                renderChannels(allChannels);
+            } catch (e) { console.error(e); }
         }
         function renderChannels(channels) {
             const grid = document.getElementById("channelGrid");
@@ -50,8 +45,7 @@
         }
         function filterChannels() {
             const term = document.getElementById("searchBox").value.toLowerCase();
-            const filtered = allChannels.filter(ch => ch.name.toLowerCase().includes(term));
-            renderChannels(filtered);
+            renderChannels(allChannels.filter(ch => ch.name.toLowerCase().includes(term)));
         }
         document.addEventListener("DOMContentLoaded", initApp);
     </script>
