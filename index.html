@@ -27,14 +27,12 @@
         let allChannels = [];
         async function initApp() {
             try {
-                // New JSON Worker Source
                 const res = await fetch("https://pkll.xojiv79335.workers.dev/");
                 const data = await res.json();
-                // Map the new JSON structure correctly
-                allChannels = data.map(ch => ({
-                    id: ch.id || ch.channel_id,
-                    name: ch.name || ch.channel_name,
-                    logo: ch.logo || ch.channel_logo
+                allChannels = data.map(ch => ({ 
+                    id: ch.id || ch.channel_id, 
+                    name: ch.name || ch.channel_name, 
+                    logo: ch.logo || ch.channel_logo 
                 }));
                 renderChannels(allChannels);
             } catch (e) { console.error(e); }
