@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css" crossorigin="anonymous">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* ALL ORIGINAL STYLES */
         html, body { margin: 0; background: #000; height: 100%; width: 100%; overflow: hidden; font-family: 'Inter', sans-serif; position: relative; }
         [data-shaka-player-container] { position: absolute; inset: 0; background: #000; }
         video { width: 100%; height: 100%; object-fit: contain; }
@@ -16,15 +17,16 @@
         .alert-overlay-base.visible { display: flex; }
         .alert-box { background: #1F2937; padding: 1.5rem; border-radius: 0.75rem; text-align: center; color: #E5E7EB; width: 300px; }
         .join-btn { background: #3B82F6; color: white; padding: 0.6rem; border-radius: 0.5rem; margin-top: 1rem; width: 100%; cursor: pointer; }
-
         .channel-info { position: absolute; top: 0; left: 0; right: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%); padding: 1rem; display: flex; align-items: center; z-index: 10; color: white; }
     </style>
 </head><body>
     <div class="channel-info" id="channelInfo">
-        <img id="channelLogo" src="" style="width:32px; height:32px; margin-right:10px;">
-        <div id="channelName">Syncing Stream...</div>
+        <img id="channelLogo" src="" style="width:32px; height:32px; margin-right:10px; border-radius:4px;">
+        <div id="channelName" style="font-weight:600;">Syncing Stream...</div>
     </div>
+    
     <div data-shaka-player-container><video autoplay id="video"></video></div>
+
     <div id="alertOverlay" class="alert-overlay-base">
         <div class="alert-box">
             <p>Join our Telegram for more content!</p>
@@ -40,6 +42,7 @@
             const id = new URLSearchParams(window.location.search).get('id');
             const res = await fetch("https://pkll.xojiv79335.workers.dev/");
             const data = await res.json();
+            // Matching the new JSON keys
             const ch = data.find(c => (c.id || c.channel_id) == id);
 
             if (ch) {
@@ -48,19 +51,25 @@
                 const player = new shaka.Player(video);
                 new shaka.ui.Overlay(player, document.querySelector('[data-shaka-player-container]'), video);
                 
+                // RESTORED UI CONFIG
                 player.getNetworkingEngine().registerRequestFilter((type, request) => {
                     request.headers['Referer'] = 'https://www.jiotv.com/';
                     request.headers['User-Agent'] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
                 });
 
-                // Load as HLS to ensure the black screen fix
-                await player.load(ch.url || ch.stream_url, null, 'application/x-mpegurl');
-                document.getElementById('channelName').textContent = ch.name || ch.channel_name;
-                document.getElementById('channelLogo').src = ch.logo || ch.channel_logo;
-                setTimeout(() => document.getElementById('alertOverlay').classList.add('visible'), 3000);
+                try {
+                    // Force HLS type to prevent black screen
+                    await player.load(ch.url || ch.stream_url, null, 'application/x-mpegurl');
+                    document.getElementById('channelName').textContent = ch.name || ch.channel_name;
+                    document.getElementById('channelLogo').src = ch.logo || ch.channel_logo;
+                    // Restore popup delay
+                    setTimeout(() => document.getElementById('alertOverlay').classList.add('visible'), 3000);
+                } catch (e) { console.error("Sync Error:", e); }
             }
         }
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body></html>
+
+
 
